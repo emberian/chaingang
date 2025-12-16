@@ -28,7 +28,13 @@ jobs:
           cache: 'npm'
           cache-dependency-path: ep1/package-lock.json
 
-      - name: Build EP1
+      - name: Build ep1-rev1
+        working-directory: ep1-rev1
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build ep1
         working-directory: ep1
         run: |
           npm ci
@@ -39,6 +45,7 @@ jobs:
           mkdir -p _site
           cp gallery-index.html _site/index.html
           cp chaingang.html _site/
+          cp -r ep1-rev1/dist _site/ep1-rev1
           cp -r ep1/dist _site/ep1
 
       - name: Upload artifact

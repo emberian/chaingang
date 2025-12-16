@@ -286,6 +286,25 @@
         </div>
       </a>
 
+      <a href="./ep1-rev1/" class="card">
+        <div class="card-visual">
+          <canvas id="ep1-rev1-preview"></canvas>
+        </div>
+        <div class="card-content">
+          <span class="card-episode">Episode 1</span>
+          <h3 class="card-title">The Thirteenth Turning</h3>
+          <p class="card-description">
+            An interactive journey through primordial emergence. Witness particles
+            coalesce, spirals awaken, and titans rise in this 2-minute animated experience.
+          </p>
+          <div class="card-tags">
+            <span class="tag">p5.js</span>
+            <span class="tag">interactive</span>
+            <span class="tag">generative</span>
+          </div>
+        </div>
+      </a>
+
       <!-- Placeholder for future episodes -->
       <div class="card coming-soon">
         <div class="card-visual"></div>
@@ -312,7 +331,7 @@
   <script>
     // Animated preview for EP1 card
     (function() {
-      const canvas = document.getElementById('ep1-preview');
+      const canvas = document.getElementById('ep1-rev1-preview');
       if (!canvas) return;
 
       const ctx = canvas.getContext('2d');
