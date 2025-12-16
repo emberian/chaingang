@@ -1,0 +1,1372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Episode 1: The Thirteenth Turning</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0a0812;
+      cursor: none;
+    }
+    canvas { display: block; }
+    #custom-cursor {
+      position: fixed;
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(0, 212, 255, 0.6);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9999;
+      transform: translate(-50%, -50%);
+      transition: transform 0.1s ease, border-color 0.3s ease;
+    }
+    #custom-cursor::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 4px;
+      height: 4px;
+      background: rgba(0, 212, 255, 0.8);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.11.11/lib/p5.min.js"></script>
+</head>
+<body>
+  <div id="custom-cursor"></div>
+  <script>
+// ═══════════════════════════════════════════════════════════════════════════
+// EPISODE 1: THE THIRTEENTH TURNING
+// A ~2 minute animated journey through the Polvo/Boonhonk mythology
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ─── TIMING CONFIGURATION ───────────────────────────────────────────────────
+const SCENE_DURATIONS = [20, 20, 25, 25, 20, 10]; // seconds per scene
+const TOTAL_DURATION = SCENE_DURATIONS.reduce((a, b) => a + b, 0);
+const TRANSITION_DURATION = 2; // seconds for crossfade
+const LOOP_ANIMATION = true; // Set to false to hold on final frame
+
+// ─── COLOR PALETTE ──────────────────────────────────────────────────────────
+const COLORS = {
+  void: '#0a0812',
+  voidDeep: '#050308',
+  indigo: '#1a1030',
+  violet: '#9932cc',
+  cyan: '#00d4ff',
+  teal: '#2dd4bf',
+  amber: '#d4a86b',
+  crimson: '#d4572a',
+  gold: '#f0d4a8',
+  bone: '#f5f0e6',
+  clay: '#8b7355',
+  pink: '#e8b4d4',
+  frost: '#a8c4e8'
+};
+
+// ─── GLOBAL STATE ───────────────────────────────────────────────────────────
+let totalTime = 0;
+let currentScene = 0;
+let sceneTime = 0;
+let mouseVel = { x: 0, y: 0 };
+let prevMouse = { x: 0, y: 0 };
+let mouseStillTime = 0;
+
+// Particle systems
+let voidParticles = [];
+let letterFragments = [];
+let spiralParticles = [];
+let gnomes = [];
+let myceliumNodes = [];
+let sporeParticles = [];
+let auroraTrails = [];
+
+// Scene-specific state
+let glyphAngle = 0;
+let spiralGrowth = 0;
+let tentacles = [];
+let titanBreath = 0;
+let finalSpirals = [];
+
+// Custom cursor element
+let cursorEl;
+
+// Background gradient buffer
+let bgGradient;
+
+// ─── SETUP ──────────────────────────────────────────────────────────────────
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  colorMode(RGB, 255, 255, 255, 1);
+  cursorEl = document.getElementById('custom-cursor');
+
+  createBackgroundGradient();
+  initVoidParticles();
+  initLetterFragments();
+  initTentacles();
+  initGnomes();
+  initMycelium();
+  initFinalSpirals();
+
+  noiseSeed(42);
+}
+
+function createBackgroundGradient() {
+  bgGradient = createGraphics(width, height);
+  const c1 = color(5, 3, 8);
+  const c2 = color(26, 16, 48);
+  for (let y = 0; y < height; y++) {
+    const inter = map(y, 0, height, 0, 1);
+    bgGradient.stroke(lerpColor(c1, c2, inter * 0.3));
+    bgGradient.line(0, y, width, y);
+  }
+}
+
+// ─── INITIALIZATION FUNCTIONS ───────────────────────────────────────────────
+function initVoidParticles() {
+  voidParticles = [];
+  for (let i = 0; i < 600; i++) {
+    voidParticles.push({
+      x: random(width),
+      y: random(height),
+      baseX: random(width),
+      baseY: random(height),
+      size: random(1, 4),
+      speed: random(0.2, 0.8),
+      offset: random(1000),
+      hue: random() < 0.3 ? 'violet' : 'void'
+    });
+  }
+}
+
+function initLetterFragments() {
+  const letters = "l'n'd'r Bjrnkpfptf".split('');
+  letterFragments = letters.map((char, i) => ({
+    char: char,
+    angle: (TWO_PI / letters.length) * i,
+    radius: random(80, 200),
+    speed: random(0.3, 0.8) * (random() < 0.5 ? 1 : -1),
+    verticalOffset: random(-30, 30),
+    size: random(14, 28),
+    opacity: 0
+  }));
+}
+
+function initTentacles() {
+  tentacles = [];
+  for (let i = 0; i < 8; i++) {
+    const baseAngle = (TWO_PI / 8) * i;
+    tentacles.push({
+      baseAngle: baseAngle,
+      segments: 12,
+      length: random(100, 180),
+      thickness: random(8, 15),
+      phaseOffset: random(TWO_PI),
+      reachTarget: { x: 0, y: 0 },
+      reachAmount: 0
+    });
+  }
+}
+
+function initGnomes() {
+  gnomes = [];
+  for (let i = 0; i < 80; i++) {
+    const terrace = floor(random(5));
+    const terraceY = height * 0.5 + terrace * 40;
+    gnomes.push({
+      x: random(width * 0.1, width * 0.9),
+      y: terraceY + random(-10, 10),
+      baseX: 0,
+      baseY: 0,
+      size: random(8, 14),
+      lanternGlow: random(0.3, 0.7),
+      lanternColor: random() < 0.5 ? COLORS.cyan : COLORS.amber,
+      lookAngle: 0,
+      bobOffset: random(TWO_PI),
+      scattered: false,
+      scatterVel: { x: 0, y: 0 }
+    });
+  }
+  gnomes.forEach(g => { g.baseX = g.x; g.baseY = g.y; });
+}
+
+function initMycelium() {
+  myceliumNodes = [];
+  const nodeCount = 40;
+  for (let i = 0; i < nodeCount; i++) {
+    myceliumNodes.push({
+      x: random(width * 0.05, width * 0.95),
+      y: random(height * 0.4, height * 0.9),
+      connections: [],
+      pulsePhase: random(TWO_PI),
+      active: false
+    });
+  }
+  // Connect nearby nodes
+  for (let i = 0; i < myceliumNodes.length; i++) {
+    for (let j = i + 1; j < myceliumNodes.length; j++) {
+      const d = dist(myceliumNodes[i].x, myceliumNodes[i].y,
+                     myceliumNodes[j].x, myceliumNodes[j].y);
+      if (d < 150 && random() < 0.4) {
+        myceliumNodes[i].connections.push(j);
+      }
+    }
+  }
+}
+
+function initFinalSpirals() {
+  finalSpirals = [];
+  for (let i = 0; i < 12; i++) {
+    finalSpirals.push({
+      x: random(width),
+      y: random(height),
+      size: random(30, 80),
+      rotation: random(TWO_PI),
+      rotationSpeed: random(0.01, 0.03) * (random() < 0.5 ? 1 : -1),
+      opacity: 0,
+      glowIntensity: 0
+    });
+  }
+}
+
+// ─── MAIN DRAW LOOP ─────────────────────────────────────────────────────────
+function draw() {
+  // Update timing
+  const dt = deltaTime / 1000;
+  totalTime += dt;
+
+  // Calculate current scene
+  let accumulated = 0;
+  for (let i = 0; i < SCENE_DURATIONS.length; i++) {
+    if (totalTime < accumulated + SCENE_DURATIONS[i]) {
+      currentScene = i;
+      sceneTime = totalTime - accumulated;
+      break;
+    }
+    accumulated += SCENE_DURATIONS[i];
+  }
+
+  // Handle end of animation (loop or hold)
+  if (totalTime >= TOTAL_DURATION) {
+    if (LOOP_ANIMATION) {
+      totalTime = 0;
+      currentScene = 0;
+      sceneTime = 0;
+      // Reset scene-specific state for clean loop
+      spiralGrowth = 0;
+      auroraTrails = [];
+      spiralParticles = [];
+      sporeParticles = [];
+      letterFragments.forEach(f => f.opacity = 0);
+      finalSpirals.forEach(s => { s.opacity = 0; s.glowIntensity = 0; });
+    } else {
+      currentScene = SCENE_DURATIONS.length - 1;
+      sceneTime = SCENE_DURATIONS[currentScene];
+    }
+  }
+
+  // Calculate mouse velocity
+  mouseVel.x = mouseX - prevMouse.x;
+  mouseVel.y = mouseY - prevMouse.y;
+  const mouseSpeed = sqrt(mouseVel.x * mouseVel.x + mouseVel.y * mouseVel.y);
+
+  if (mouseSpeed < 2) {
+    mouseStillTime += dt;
+  } else {
+    mouseStillTime = 0;
+  }
+
+  prevMouse.x = mouseX;
+  prevMouse.y = mouseY;
+
+  // Update custom cursor
+  if (cursorEl) {
+    cursorEl.style.left = mouseX + 'px';
+    cursorEl.style.top = mouseY + 'px';
+    const hue = map(sin(totalTime * 2), -1, 1, 180, 280);
+    cursorEl.style.borderColor = `hsla(${hue}, 80%, 60%, 0.6)`;
+  }
+
+  // Clear with scene-appropriate background
+  drawBackground();
+
+  // Render current scene with transitions
+  renderScene(currentScene, sceneTime, dt);
+
+  // Render scene transitions (crossfade)
+  renderTransitions(dt);
+
+  // Draw subtle vignette
+  drawVignette();
+
+  // Draw episode intro title
+  drawEpisodeTitle();
+}
+
+// ─── BACKGROUND ─────────────────────────────────────────────────────────────
+function drawBackground() {
+  // Use pre-rendered gradient for performance
+  if (bgGradient) {
+    image(bgGradient, 0, 0);
+  } else {
+    background(10, 8, 18);
+  }
+
+  // Add scene-specific tint overlay for later scenes
+  if (currentScene >= 3) {
+    const tintAlpha = map(currentScene, 3, 5, 0.05, 0.15);
+    push();
+    noStroke();
+    fill(26, 16, 48, tintAlpha);
+    rect(0, 0, width, height);
+    pop();
+  }
+}
+
+function drawVignette() {
+  push();
+  noStroke();
+  const gradient = drawingContext.createRadialGradient(
+    width/2, height/2, 0,
+    width/2, height/2, max(width, height) * 0.7
+  );
+  gradient.addColorStop(0, 'rgba(0,0,0,0)');
+  gradient.addColorStop(0.7, 'rgba(0,0,0,0.2)');
+  gradient.addColorStop(1, 'rgba(0,0,0,0.6)');
+  drawingContext.fillStyle = gradient;
+  rect(0, 0, width, height);
+  pop();
+}
+
+// ─── SCENE ROUTING ──────────────────────────────────────────────────────────
+function renderScene(scene, time, dt) {
+  const progress = time / SCENE_DURATIONS[scene];
+
+  switch(scene) {
+    case 0: renderVoidPool(progress, dt); break;
+    case 1: renderNameIgnition(progress, dt); break;
+    case 2: renderSpiralAwakens(progress, dt); break;
+    case 3: renderMycocousins(progress, dt); break;
+    case 4: renderThirteenthTurning(progress, dt); break;
+    case 5: renderSpiralContinues(progress, dt); break;
+  }
+}
+
+function renderTransitions(dt) {
+  // Draw subtle progress bar at bottom
+  const progressRatio = totalTime / TOTAL_DURATION;
+  push();
+  noStroke();
+  // Background track
+  fill(30, 25, 40, 0.3);
+  rect(width * 0.1, height - 8, width * 0.8, 3, 2);
+  // Progress fill
+  const progCol = lerpColor(color(hexToRgb(COLORS.violet)), color(hexToRgb(COLORS.cyan)), progressRatio);
+  fill(red(progCol), green(progCol), blue(progCol), 0.6);
+  rect(width * 0.1, height - 8, width * 0.8 * progressRatio, 3, 2);
+  // Scene markers
+  let markerX = width * 0.1;
+  for (let i = 0; i < SCENE_DURATIONS.length - 1; i++) {
+    markerX += (SCENE_DURATIONS[i] / TOTAL_DURATION) * width * 0.8;
+    fill(100, 90, 120, 0.4);
+    ellipse(markerX, height - 6.5, 4, 4);
+  }
+  pop();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SCENE 1: VOID POOL
+// ═══════════════════════════════════════════════════════════════════════════
+function renderVoidPool(progress, dt) {
+  push();
+  blendMode(ADD);
+
+  const centerPull = map(progress, 0, 1, 0.0002, 0.002);
+
+  for (let p of voidParticles) {
+    // Perlin noise movement
+    const n = noise(p.x * 0.003 + p.offset, p.y * 0.003, totalTime * 0.2);
+    const angle = n * TWO_PI * 2;
+
+    p.x += cos(angle) * p.speed;
+    p.y += sin(angle) * p.speed;
+
+    // Drift toward center
+    const dx = width/2 - p.x;
+    const dy = height/2 - p.y;
+    p.x += dx * centerPull;
+    p.y += dy * centerPull;
+
+    // Mouse interaction: gravitational ripple
+    const mouseDist = dist(mouseX, mouseY, p.x, p.y);
+    if (mouseDist < 200) {
+      const repelStrength = map(mouseDist, 0, 200, 3, 0);
+      const repelAngle = atan2(p.y - mouseY, p.x - mouseX);
+      p.x += cos(repelAngle) * repelStrength;
+      p.y += sin(repelAngle) * repelStrength;
+    }
+
+    // Gather around still mouse
+    if (mouseStillTime > 1 && mouseDist < 150) {
+      const gatherStrength = map(mouseStillTime, 1, 3, 0, 0.02);
+      p.x += (mouseX - p.x) * gatherStrength;
+      p.y += (mouseY - p.y) * gatherStrength;
+    }
+
+    // Wrap around edges
+    if (p.x < 0) p.x = width;
+    if (p.x > width) p.x = 0;
+    if (p.y < 0) p.y = height;
+    if (p.y > height) p.y = 0;
+
+    // Draw particle
+    const distFromCenter = dist(p.x, p.y, width/2, height/2);
+    const brightness = map(distFromCenter, 0, width/2, 1, 0.3);
+
+    if (p.hue === 'violet') {
+      fill(153, 50, 204, brightness * 0.4);
+    } else {
+      fill(100, 80, 150, brightness * 0.3);
+    }
+    noStroke();
+    ellipse(p.x, p.y, p.size * (1 + sin(totalTime * 2 + p.offset) * 0.3));
+  }
+
+  // Draw mouse trail (cyan potential energy)
+  drawMouseTrail(color(0, 212, 255, 0.15));
+
+  // Quantum foam flickers
+  if (random() < 0.03) {
+    fill(153, 50, 204, random(0.1, 0.3));
+    const fx = random(width);
+    const fy = random(height);
+    ellipse(fx, fy, random(20, 60));
+  }
+
+  pop();
+
+  // Scene title fade in/out
+  if (progress < 0.15) {
+    drawSceneTitle("i. the void pool", progress * 6.67);
+  } else if (progress > 0.9) {
+    drawSceneTitle("i. the void pool", (1 - progress) * 10);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SCENE 2: NAME IGNITION
+// ═══════════════════════════════════════════════════════════════════════════
+function renderNameIgnition(progress, dt) {
+  const centerX = width / 2;
+  const centerY = height / 2;
+
+  // Background glow
+  push();
+  blendMode(ADD);
+  const glowIntensity = map(progress, 0, 0.5, 0, 1);
+  const glowColor = lerpColor(
+    color(hexToRgb(COLORS.violet)),
+    color(hexToRgb(COLORS.cyan)),
+    progress
+  );
+  glowColor.setAlpha(0.1 * glowIntensity);
+
+  for (let r = 300; r > 0; r -= 30) {
+    fill(red(glowColor), green(glowColor), blue(glowColor), 0.02 * glowIntensity);
+    ellipse(centerX, centerY, r * 2);
+  }
+  pop();
+
+  // Radial waves
+  push();
+  noFill();
+  const waveCount = 5;
+  for (let i = 0; i < waveCount; i++) {
+    const waveProgress = (progress * 3 + i / waveCount) % 1;
+    const waveRadius = waveProgress * 400;
+    const waveAlpha = (1 - waveProgress) * 0.3;
+    stroke(0, 212, 255, waveAlpha);
+    strokeWeight(2);
+    ellipse(centerX, centerY, waveRadius * 2);
+  }
+  pop();
+
+  // Central glyph (organic bezier shape)
+  push();
+  translate(centerX, centerY);
+  glyphAngle += dt * 0.3;
+  rotate(glyphAngle * 0.1);
+
+  noFill();
+  strokeWeight(3);
+
+  // Mouse influences glyph glow
+  const mouseDistFromCenter = dist(mouseX, mouseY, centerX, centerY);
+  const glyphGlow = map(mouseDistFromCenter, 0, 300, 1, 0.3);
+
+  const glyphColor = lerpColor(
+    color(hexToRgb(COLORS.amber)),
+    color(hexToRgb(COLORS.cyan)),
+    progress
+  );
+  stroke(red(glyphColor), green(glyphColor), blue(glyphColor), glyphGlow);
+
+  // Draw organic tentacle-like glyph
+  beginShape();
+  for (let a = 0; a < TWO_PI; a += 0.1) {
+    const r = 60 + sin(a * 3 + totalTime) * 20 + noise(a, totalTime * 0.5) * 30;
+    const x = cos(a) * r;
+    const y = sin(a) * r;
+    curveVertex(x, y);
+  }
+  endShape(CLOSE);
+
+  // Inner glyph detail
+  stroke(red(glyphColor), green(glyphColor), blue(glyphColor), glyphGlow * 0.5);
+  strokeWeight(1.5);
+  for (let i = 0; i < 3; i++) {
+    beginShape();
+    for (let a = 0; a < TWO_PI; a += 0.15) {
+      const r = 30 + i * 10 + sin(a * 5 + totalTime * 1.5 + i) * 10;
+      curveVertex(cos(a) * r, sin(a) * r);
+    }
+    endShape(CLOSE);
+  }
+  pop();
+
+  // Orbiting letter fragments
+  push();
+  textAlign(CENTER, CENTER);
+  textFont('Georgia');
+
+  for (let frag of letterFragments) {
+    frag.opacity = min(1, frag.opacity + dt * 0.5);
+    frag.angle += frag.speed * dt;
+
+    // Mouse scatters letters
+    const fragX = centerX + cos(frag.angle) * frag.radius;
+    const fragY = centerY + sin(frag.angle) * frag.radius + frag.verticalOffset;
+    const mouseDistToFrag = dist(mouseX, mouseY, fragX, fragY);
+
+    let displayX = fragX;
+    let displayY = fragY;
+
+    if (mouseDistToFrag < 100) {
+      const scatterStrength = map(mouseDistToFrag, 0, 100, 40, 0);
+      const scatterAngle = atan2(fragY - mouseY, fragX - mouseX);
+      displayX += cos(scatterAngle) * scatterStrength;
+      displayY += sin(scatterAngle) * scatterStrength;
+    }
+
+    const fragColor = lerpColor(
+      color(hexToRgb(COLORS.gold)),
+      color(hexToRgb(COLORS.cyan)),
+      sin(frag.angle + totalTime) * 0.5 + 0.5
+    );
+
+    fill(red(fragColor), green(fragColor), blue(fragColor), frag.opacity * 0.8);
+    textSize(frag.size);
+    text(frag.char, displayX, displayY);
+  }
+  pop();
+
+  // Mouse interaction: hold creates pulse
+  if (mouseIsPressed) {
+    push();
+    blendMode(ADD);
+    const pulseSize = (sin(totalTime * 10) * 0.5 + 0.5) * 50 + 20;
+    fill(0, 212, 255, 0.2);
+    ellipse(mouseX, mouseY, pulseSize);
+    pop();
+  }
+
+  // Scene title
+  if (progress < 0.15) {
+    drawSceneTitle("ii. first honk", progress * 6.67);
+  } else if (progress > 0.9) {
+    drawSceneTitle("ii. first honk", (1 - progress) * 10);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SCENE 3: THE SPIRAL AWAKENS
+// ═══════════════════════════════════════════════════════════════════════════
+function renderSpiralAwakens(progress, dt) {
+  const centerX = width / 2;
+  const centerY = height / 2;
+
+  spiralGrowth = lerp(spiralGrowth, progress, 0.02);
+
+  // Calculate mouse speed for ink spray
+  const mouseSpeed = sqrt(mouseVel.x * mouseVel.x + mouseVel.y * mouseVel.y);
+
+  // Spawn ink particles on fast movement
+  if (mouseSpeed > 15 && spiralParticles.length < 200) {
+    for (let i = 0; i < 3; i++) {
+      spiralParticles.push({
+        x: mouseX + random(-20, 20),
+        y: mouseY + random(-20, 20),
+        vx: random(-3, 3) - mouseVel.x * 0.1,
+        vy: random(-3, 3) - mouseVel.y * 0.1,
+        life: 1,
+        size: random(5, 15),
+        color: random() < 0.5 ? COLORS.violet : COLORS.indigo
+      });
+    }
+  }
+
+  // Update and draw ink particles
+  push();
+  blendMode(ADD);
+  for (let i = spiralParticles.length - 1; i >= 0; i--) {
+    const p = spiralParticles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vx *= 0.98;
+    p.vy *= 0.98;
+    p.life -= dt * 0.5;
+
+    if (p.life <= 0) {
+      spiralParticles.splice(i, 1);
+      continue;
+    }
+
+    const c = color(hexToRgb(p.color));
+    fill(red(c), green(c), blue(c), p.life * 0.4);
+    noStroke();
+    ellipse(p.x, p.y, p.size * p.life);
+  }
+  pop();
+
+  // Draw growing spiral
+  push();
+  translate(centerX, centerY);
+
+  // Mouse warps spiral
+  const mouseOffsetX = (mouseX - centerX) * 0.001;
+  const mouseOffsetY = (mouseY - centerY) * 0.001;
+
+  noFill();
+  strokeWeight(2);
+
+  const maxCoils = floor(spiralGrowth * 8);
+  const coilDetail = spiralGrowth * TWO_PI * 8;
+
+  for (let layer = 0; layer < 3; layer++) {
+    const layerOffset = layer * 0.5;
+    const c = lerpColor(
+      color(hexToRgb(COLORS.violet)),
+      color(hexToRgb(COLORS.teal)),
+      layer / 3
+    );
+    stroke(red(c), green(c), blue(c), 0.4 - layer * 0.1);
+
+    beginShape();
+    for (let a = 0; a < coilDetail; a += 0.1) {
+      let r = a * 8 + layerOffset * 20;
+
+      // Apply noise displacement
+      const noiseVal = noise(a * 0.3, totalTime * 0.3 + layer);
+      r += noiseVal * 15;
+
+      // Mouse warp effect
+      const warpX = cos(a) * r;
+      const warpY = sin(a) * r;
+      const distToMouse = dist(warpX + centerX, warpY + centerY, mouseX, mouseY);
+      const warpStrength = map(distToMouse, 0, 200, 30, 0, true);
+
+      const finalX = warpX + (mouseX - centerX - warpX) * warpStrength * 0.05;
+      const finalY = warpY + (mouseY - centerY - warpY) * warpStrength * 0.05;
+
+      curveVertex(finalX, finalY);
+    }
+    endShape();
+  }
+  pop();
+
+  // Draw tentacles
+  push();
+  translate(centerX, centerY);
+
+  for (let tent of tentacles) {
+    // Tentacles reach toward mouse
+    const targetAngle = atan2(mouseY - centerY, mouseX - centerX);
+    const angleDiff = targetAngle - tent.baseAngle;
+    tent.reachAmount = lerp(tent.reachAmount,
+      map(abs(angleDiff), 0, PI, 0.3, 0), 0.05);
+
+    drawTentacle(tent, progress);
+  }
+  pop();
+
+  // Floating autumn leaves (sparse)
+  if (progress > 0.3 && random() < 0.02) {
+    sporeParticles.push({
+      x: random(width),
+      y: -20,
+      vx: random(-0.5, 0.5),
+      vy: random(0.5, 1.5),
+      rotation: random(TWO_PI),
+      rotSpeed: random(-0.02, 0.02),
+      size: random(8, 15),
+      life: 1,
+      type: 'leaf'
+    });
+  }
+
+  // Update leaves
+  push();
+  for (let i = sporeParticles.length - 1; i >= 0; i--) {
+    const p = sporeParticles[i];
+    p.x += p.vx + sin(totalTime + p.rotation) * 0.3;
+    p.y += p.vy;
+    p.rotation += p.rotSpeed;
+
+    if (p.y > height + 20) {
+      sporeParticles.splice(i, 1);
+      continue;
+    }
+
+    push();
+    translate(p.x, p.y);
+    rotate(p.rotation);
+    const leafCol = color(hexToRgb(COLORS.crimson));
+    fill(red(leafCol), green(leafCol), blue(leafCol), 0.6);
+    noStroke();
+    // Simple leaf shape
+    beginShape();
+    vertex(0, -p.size/2);
+    bezierVertex(p.size/2, -p.size/4, p.size/2, p.size/4, 0, p.size/2);
+    bezierVertex(-p.size/2, p.size/4, -p.size/2, -p.size/4, 0, -p.size/2);
+    endShape();
+    pop();
+  }
+  pop();
+
+  // Scene title
+  if (progress < 0.12) {
+    drawSceneTitle("iii. the spiral awakens", progress * 8.33);
+  } else if (progress > 0.92) {
+    drawSceneTitle("iii. the spiral awakens", (1 - progress) * 12.5);
+  }
+}
+
+function drawTentacle(tent, progress) {
+  const segments = tent.segments;
+  const segmentLength = tent.length / segments * progress;
+
+  push();
+  rotate(tent.baseAngle);
+
+  noFill();
+  strokeWeight(tent.thickness);
+
+  const c = lerpColor(
+    color(hexToRgb(COLORS.violet)),
+    color(hexToRgb(COLORS.teal)),
+    0.5 + sin(totalTime + tent.phaseOffset) * 0.3
+  );
+  stroke(red(c), green(c), blue(c), 0.6);
+
+  beginShape();
+  let x = 0, y = 0;
+
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    const wave = sin(t * PI * 3 + totalTime * 2 + tent.phaseOffset) * 20 * t;
+    const noiseWave = noise(t * 2, totalTime + tent.phaseOffset) * 15 * t;
+
+    // Reach toward mouse
+    const reachOffset = tent.reachAmount * 30 * t;
+
+    x = t * tent.length * progress;
+    y = wave + noiseWave;
+
+    curveVertex(x, y + reachOffset * sin(tent.baseAngle));
+  }
+  endShape();
+
+  // Tentacle tip (sucker)
+  fill(red(c), green(c), blue(c), 0.4);
+  noStroke();
+  ellipse(x, y, tent.thickness * 0.6);
+
+  pop();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SCENE 4: MYCOCOUSIN GATHERING
+// ═══════════════════════════════════════════════════════════════════════════
+function renderMycocousins(progress, dt) {
+  // Draw terraced landscape
+  push();
+  noStroke();
+  for (let i = 0; i < 6; i++) {
+    const y = height * 0.45 + i * 45;
+    const shade = map(i, 0, 5, 40, 20);
+    fill(shade, shade - 5, shade - 10);
+    beginShape();
+    vertex(0, y);
+    for (let x = 0; x <= width; x += 50) {
+      const noiseY = noise(x * 0.01, i * 0.5) * 20;
+      vertex(x, y + noiseY);
+    }
+    vertex(width, height);
+    vertex(0, height);
+    endShape(CLOSE);
+  }
+  pop();
+
+  // Draw mycelium network
+  push();
+  const mouseDistances = myceliumNodes.map(n => dist(mouseX, mouseY, n.x, n.y));
+
+  for (let i = 0; i < myceliumNodes.length; i++) {
+    const node = myceliumNodes[i];
+    node.pulsePhase += dt * 2;
+
+    // Ripple activation from mouse
+    if (mouseDistances[i] < 100) {
+      node.active = true;
+    } else {
+      node.active = lerp(node.active ? 1 : 0, 0, 0.02) > 0.5;
+    }
+
+    // Draw connections
+    for (let j of node.connections) {
+      const other = myceliumNodes[j];
+      const pulsePos = (sin(node.pulsePhase) * 0.5 + 0.5);
+
+      // Base line
+      stroke(45, 200, 190, 0.15);
+      strokeWeight(1);
+      line(node.x, node.y, other.x, other.y);
+
+      // Pulse traveling along line
+      if (node.active || other.active) {
+        const px = lerp(node.x, other.x, pulsePos);
+        const py = lerp(node.y, other.y, pulsePos);
+        fill(0, 212, 255, 0.6);
+        noStroke();
+        ellipse(px, py, 4);
+      }
+    }
+
+    // Draw node
+    fill(45, 200, 190, node.active ? 0.5 : 0.2);
+    noStroke();
+    ellipse(node.x, node.y, 6);
+  }
+  pop();
+
+  // Update and draw gnomes
+  const mouseSpeedSq = mouseVel.x * mouseVel.x + mouseVel.y * mouseVel.y;
+
+  for (let gnome of gnomes) {
+    // Scatter on fast mouse movement
+    if (mouseSpeedSq > 400) {
+      const dg = dist(mouseX, mouseY, gnome.x, gnome.y);
+      if (dg < 150) {
+        gnome.scattered = true;
+        const fleeAngle = atan2(gnome.y - mouseY, gnome.x - mouseX);
+        gnome.scatterVel.x = cos(fleeAngle) * 3;
+        gnome.scatterVel.y = sin(fleeAngle) * 2;
+      }
+    }
+
+    // Return to base position
+    if (gnome.scattered) {
+      gnome.x += gnome.scatterVel.x;
+      gnome.y += gnome.scatterVel.y;
+      gnome.scatterVel.x *= 0.95;
+      gnome.scatterVel.y *= 0.95;
+
+      gnome.x = lerp(gnome.x, gnome.baseX, 0.02);
+      gnome.y = lerp(gnome.y, gnome.baseY, 0.02);
+
+      if (dist(gnome.x, gnome.y, gnome.baseX, gnome.baseY) < 2) {
+        gnome.scattered = false;
+      }
+    }
+
+    // Bob animation
+    const bob = sin(totalTime * 2 + gnome.bobOffset) * 2;
+
+    // Look toward mouse
+    gnome.lookAngle = lerp(gnome.lookAngle,
+      atan2(mouseY - gnome.y, mouseX - gnome.x), 0.1);
+
+    // Lantern glow intensity based on mouse proximity
+    const mouseDist = dist(mouseX, mouseY, gnome.x, gnome.y);
+    const proximityGlow = map(mouseDist, 0, 150, 0.5, 0, true);
+    const totalGlow = gnome.lanternGlow + proximityGlow;
+
+    // Draw gnome
+    push();
+    translate(gnome.x, gnome.y + bob);
+
+    // Body (simple mushroom shape)
+    const clayCol = color(hexToRgb(COLORS.clay));
+    fill(red(clayCol), green(clayCol), blue(clayCol));
+    noStroke();
+    // Cap
+    ellipse(0, -gnome.size * 0.3, gnome.size * 1.2, gnome.size * 0.8);
+    // Stem
+    rect(-gnome.size * 0.25, -gnome.size * 0.3, gnome.size * 0.5, gnome.size * 0.6);
+
+    // Face direction indicator (eyes looking at mouse)
+    const eyeOffset = gnome.lookAngle < 0 ? -1 : 1;
+    fill(20);
+    ellipse(eyeOffset * gnome.size * 0.15, -gnome.size * 0.35, 2, 2);
+
+    // Lantern
+    const lanternX = gnome.size * 0.4;
+    const lanternY = -gnome.size * 0.1;
+
+    // Lantern glow
+    push();
+    blendMode(ADD);
+    const lc = color(gnome.lanternColor);
+    for (let r = 20; r > 0; r -= 5) {
+      fill(red(lc), green(lc), blue(lc), totalGlow * 0.05);
+      ellipse(lanternX, lanternY, r);
+    }
+    pop();
+
+    // Lantern dot
+    fill(gnome.lanternColor);
+    ellipse(lanternX, lanternY, 4);
+
+    pop();
+  }
+
+  // Floating spores
+  push();
+  blendMode(ADD);
+  for (let i = 0; i < 50; i++) {
+    const sx = noise(i * 10, totalTime * 0.1) * width;
+    const sy = noise(i * 10 + 1000, totalTime * 0.1) * height * 0.6 + height * 0.35;
+    const alpha = noise(i * 10 + 2000, totalTime * 0.2) * 0.3;
+    fill(200, 180, 220, alpha);
+    noStroke();
+    ellipse(sx, sy, 3 + sin(totalTime + i) * 1);
+  }
+  pop();
+
+  // Scene title
+  if (progress < 0.12) {
+    drawSceneTitle("iv. mycocousin gathering", progress * 8.33);
+  } else if (progress > 0.92) {
+    drawSceneTitle("iv. mycocousin gathering", (1 - progress) * 12.5);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SCENE 5: THE THIRTEENTH TURNING
+// ═══════════════════════════════════════════════════════════════════════════
+function renderThirteenthTurning(progress, dt) {
+  const centerX = width / 2;
+  const centerY = height / 2;
+
+  titanBreath += dt;
+  const breathScale = 1 + sin(titanBreath * 0.8) * 0.02;
+
+  // Aurora trails from mouse
+  if (frameCount % 3 === 0) {
+    auroraTrails.push({
+      x: mouseX,
+      y: mouseY,
+      life: 1,
+      hue: map(sin(totalTime), -1, 1, 180, 280)
+    });
+  }
+
+  // Draw and update aurora
+  push();
+  blendMode(ADD);
+  noStroke();
+  for (let i = auroraTrails.length - 1; i >= 0; i--) {
+    const trail = auroraTrails[i];
+    trail.life -= dt * 1.5;
+
+    if (trail.life <= 0) {
+      auroraTrails.splice(i, 1);
+      continue;
+    }
+
+    const size = trail.life * 30;
+    fill(`hsla(${trail.hue}, 70%, 60%, ${trail.life * 0.3})`);
+    ellipse(trail.x, trail.y, size);
+  }
+  pop();
+
+  // Draw titan figure
+  push();
+  translate(centerX, centerY - 50);
+  scale(breathScale);
+
+  // Titan leans based on mouse position
+  const leanAmount = (mouseX - centerX) * 0.0001;
+  rotate(leanAmount);
+
+  // If mouse approaches, titan leans forward
+  const mouseDistFromTitan = dist(mouseX, mouseY, centerX, centerY);
+  const forwardLean = map(mouseDistFromTitan, 300, 100, 0, -0.05, true);
+  translate(0, forwardLean * 50);
+
+  // Body (particle cloud silhouette)
+  noStroke();
+  const bodyParticleCount = 300;
+
+  for (let i = 0; i < bodyParticleCount; i++) {
+    const t = i / bodyParticleCount;
+    const bodyY = map(t, 0, 1, -200, 150);
+
+    // Body width varies
+    let bodyWidth;
+    if (t < 0.3) {
+      // Head
+      bodyWidth = map(t, 0, 0.3, 30, 80);
+    } else if (t < 0.5) {
+      // Shoulders
+      bodyWidth = map(t, 0.3, 0.5, 80, 120);
+    } else {
+      // Torso
+      bodyWidth = map(t, 0.5, 1, 120, 60);
+    }
+
+    const px = noise(i * 0.1, totalTime * 0.3) * bodyWidth - bodyWidth/2;
+    const py = bodyY + noise(i * 0.1 + 100, totalTime * 0.3) * 10;
+    const ps = 4 + noise(i * 0.2) * 4;
+
+    const c = lerpColor(
+      color(hexToRgb(COLORS.clay)),
+      color(hexToRgb(COLORS.violet)),
+      noise(i * 0.05, totalTime * 0.2)
+    );
+    fill(red(c), green(c), blue(c), 0.6);
+    ellipse(px, py, ps);
+  }
+
+  // Geode eyes
+  const eyeY = -150;
+  const eyeSpacing = 35;
+
+  // Eyes follow mouse
+  const eyeTargetX = (mouseX - centerX) * 0.1;
+  const eyeTargetY = (mouseY - (centerY - 50 + eyeY)) * 0.1;
+
+  for (let side of [-1, 1]) {
+    const eyeX = side * eyeSpacing;
+
+    // Eye socket
+    fill(20, 10, 30);
+    ellipse(eyeX, eyeY, 30, 35);
+
+    // Geode glow
+    push();
+    blendMode(ADD);
+    const eyeColor = side < 0 ? COLORS.cyan : COLORS.violet;
+    const eyeCol = color(hexToRgb(eyeColor));
+    for (let r = 25; r > 0; r -= 5) {
+      fill(red(eyeCol), green(eyeCol), blue(eyeCol), 0.1 * (1 - r/25));
+      ellipse(eyeX, eyeY, r);
+    }
+    pop();
+
+    // Pupil (follows mouse)
+    fill(red(eyeCol), green(eyeCol), blue(eyeCol));
+    const pupilX = eyeX + constrain(eyeTargetX, -8, 8);
+    const pupilY = eyeY + constrain(eyeTargetY, -8, 8);
+    ellipse(pupilX, pupilY, 8);
+  }
+
+  // Beard of tiny gnomes
+  push();
+  translate(0, -80);
+  for (let i = 0; i < 40; i++) {
+    const beardX = noise(i * 0.3, totalTime * 0.5) * 80 - 40;
+    const beardY = 30 + i * 3 + sin(totalTime + i * 0.5) * 3;
+
+    // Tiny gnome silhouette
+    fill(60, 50, 70, 0.7);
+    ellipse(beardX, beardY, 6, 5);
+    rect(beardX - 2, beardY, 4, 5);
+
+    // Tiny lantern
+    push();
+    blendMode(ADD);
+    fill(0, 212, 255, 0.3);
+    ellipse(beardX + 3, beardY + 2, 3);
+    pop();
+  }
+  pop();
+
+  pop();
+
+  // Merge previous elements in background
+  push();
+  blendMode(ADD);
+  // Faint spiral in background
+  stroke(153, 50, 204, 0.1);
+  strokeWeight(1);
+  noFill();
+  translate(centerX, centerY);
+  beginShape();
+  for (let a = 0; a < TWO_PI * 4; a += 0.2) {
+    const r = a * 15;
+    curveVertex(cos(a + totalTime * 0.1) * r, sin(a + totalTime * 0.1) * r);
+  }
+  endShape();
+  pop();
+
+  // Scene title
+  if (progress < 0.1) {
+    drawSceneTitle("v. the thirteenth turning", progress * 10);
+  } else if (progress > 0.9) {
+    drawSceneTitle("v. the thirteenth turning", (1 - progress) * 10);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SCENE 6: THE SPIRAL CONTINUES
+// ═══════════════════════════════════════════════════════════════════════════
+function renderSpiralContinues(progress, dt) {
+  const centerX = width / 2;
+  const centerY = height / 2;
+
+  // Zoom out effect
+  const zoomScale = map(progress, 0, 1, 1, 0.3);
+
+  // Current scene shrinks
+  push();
+  translate(centerX, centerY);
+  scale(zoomScale);
+
+  // Draw main spiral (simplified titan/spiral combo)
+  noFill();
+  const tealCol = color(hexToRgb(COLORS.teal));
+  stroke(red(tealCol), green(tealCol), blue(tealCol), 0.5);
+  strokeWeight(2);
+  beginShape();
+  for (let a = 0; a < TWO_PI * 5; a += 0.15) {
+    const r = a * 10 + noise(a * 0.3, totalTime * 0.3) * 10;
+    curveVertex(cos(a) * r, sin(a) * r);
+  }
+  endShape();
+
+  // Central glow
+  push();
+  blendMode(ADD);
+  for (let r = 50; r > 0; r -= 10) {
+    fill(0, 212, 255, 0.05);
+    ellipse(0, 0, r * 2);
+  }
+  pop();
+  pop();
+
+  // Multiple smaller spirals appear
+  for (let spiral of finalSpirals) {
+    spiral.opacity = lerp(spiral.opacity, progress * 0.6, 0.05);
+    spiral.rotation += spiral.rotationSpeed;
+
+    // Mouse selects nearest spiral
+    const dToMouse = dist(mouseX, mouseY, spiral.x, spiral.y);
+    spiral.glowIntensity = lerp(spiral.glowIntensity,
+      map(dToMouse, 0, 200, 0.8, 0, true), 0.1);
+
+    push();
+    translate(spiral.x, spiral.y);
+    rotate(spiral.rotation);
+    scale(spiral.size / 50);
+
+    // Draw mini spiral
+    noFill();
+    const c = lerpColor(
+      color(hexToRgb(COLORS.violet)),
+      color(hexToRgb(COLORS.cyan)),
+      spiral.glowIntensity
+    );
+    stroke(red(c), green(c), blue(c), spiral.opacity);
+    strokeWeight(1.5);
+
+    beginShape();
+    for (let a = 0; a < TWO_PI * 3; a += 0.2) {
+      const r = a * 5;
+      curveVertex(cos(a) * r, sin(a) * r);
+    }
+    endShape();
+
+    // Glow on selected
+    if (spiral.glowIntensity > 0.1) {
+      push();
+      blendMode(ADD);
+      fill(0, 212, 255, spiral.glowIntensity * 0.2);
+      ellipse(0, 0, 30);
+      pop();
+    }
+
+    pop();
+  }
+
+  // Particle streams connect mouse to spirals
+  push();
+  blendMode(ADD);
+  for (let spiral of finalSpirals) {
+    if (spiral.glowIntensity > 0.2) {
+      stroke(0, 212, 255, spiral.glowIntensity * 0.3);
+      strokeWeight(1);
+
+      // Curved line from mouse to spiral
+      noFill();
+      beginShape();
+      curveVertex(mouseX, mouseY);
+      curveVertex(mouseX, mouseY);
+      curveVertex(
+        (mouseX + spiral.x) / 2 + sin(totalTime * 2) * 30,
+        (mouseY + spiral.y) / 2 + cos(totalTime * 2) * 30
+      );
+      curveVertex(spiral.x, spiral.y);
+      curveVertex(spiral.x, spiral.y);
+      endShape();
+    }
+  }
+  pop();
+
+  // Final text
+  if (progress > 0.5) {
+    const textOpacity = map(progress, 0.5, 0.9, 0, 1);
+    push();
+    textAlign(CENTER, CENTER);
+    textFont('Georgia');
+    textSize(18);
+    fill(245, 240, 230, textOpacity);
+    text("the spiral is yours", centerX, centerY + 150);
+
+    if (progress > 0.7) {
+      const subOpacity = map(progress, 0.7, 1, 0, 0.6);
+      textSize(14);
+      fill(168, 196, 232, subOpacity);
+      text("it always was", centerX, centerY + 175);
+    }
+    pop();
+  }
+
+  // Peaceful glow when mouse is still
+  if (mouseStillTime > 2) {
+    push();
+    blendMode(ADD);
+    const peaceGlow = map(mouseStillTime, 2, 5, 0, 0.3, true);
+    for (let r = 60; r > 0; r -= 10) {
+      fill(245, 240, 230, peaceGlow * 0.1);
+      ellipse(mouseX, mouseY, r);
+    }
+    pop();
+  }
+}
+
+// ─── UTILITY FUNCTIONS ──────────────────────────────────────────────────────
+function hexToRgb(hex) {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (result) {
+    return `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}`;
+  }
+  return '255, 255, 255';
+}
+
+function drawMouseTrail(col) {
+  push();
+  blendMode(ADD);
+  noStroke();
+  for (let i = 0; i < 10; i++) {
+    const trailX = mouseX - mouseVel.x * i * 0.3;
+    const trailY = mouseY - mouseVel.y * i * 0.3;
+    const alpha = map(i, 0, 10, 0.3, 0);
+    fill(red(col), green(col), blue(col), alpha);
+    ellipse(trailX, trailY, 10 - i);
+  }
+  pop();
+}
+
+function drawSceneTitle(title, opacity) {
+  push();
+  textAlign(CENTER, CENTER);
+  textFont('Georgia');
+  textSize(24);
+  fill(245, 240, 230, opacity * 0.6);
+  text(title, width / 2, height - 60);
+  pop();
+}
+
+function drawEpisodeTitle() {
+  // Show episode title at very beginning
+  if (totalTime < 4) {
+    const opacity = totalTime < 2 ? totalTime / 2 : (4 - totalTime) / 2;
+    push();
+    textAlign(CENTER, CENTER);
+    textFont('Georgia');
+
+    // Main title
+    textSize(36);
+    fill(245, 240, 230, opacity * 0.8);
+    text("The Thirteenth Turning", width / 2, height / 2 - 30);
+
+    // Subtitle
+    textSize(16);
+    fill(168, 196, 232, opacity * 0.5);
+    text("episode one", width / 2, height / 2 + 15);
+
+    // Instruction
+    if (totalTime > 1.5) {
+      textSize(12);
+      fill(100, 90, 120, opacity * 0.4);
+      text("move your cursor to participate", width / 2, height / 2 + 50);
+    }
+    pop();
+  }
+}
+
+function mousePressed() {
+  // Click to restart when animation ends (if not looping)
+  if (!LOOP_ANIMATION && totalTime >= TOTAL_DURATION) {
+    totalTime = 0;
+    spiralGrowth = 0;
+    auroraTrails = [];
+    spiralParticles = [];
+    sporeParticles = [];
+    letterFragments.forEach(f => f.opacity = 0);
+    finalSpirals.forEach(s => { s.opacity = 0; s.glowIntensity = 0; });
+  }
+}
+
+// ─── WINDOW RESIZE ──────────────────────────────────────────────────────────
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+  createBackgroundGradient();
+
+  // Reinitialize position-dependent elements
+  gnomes.forEach(g => {
+    const terrace = floor(random(5));
+    g.baseY = height * 0.5 + terrace * 40 + random(-10, 10);
+    g.y = g.baseY;
+  });
+
+  myceliumNodes.forEach(n => {
+    n.x = random(width * 0.05, width * 0.95);
+    n.y = random(height * 0.4, height * 0.9);
+  });
+
+  finalSpirals.forEach(s => {
+    s.x = random(width);
+    s.y = random(height);
+  });
+}
+  </script>
+</body>
+</html>

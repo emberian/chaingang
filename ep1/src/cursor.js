@@ -1,0 +1,181 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// CURSOR TRANSFORMATIONS - The Thirteenth Turning
+// ═══════════════════════════════════════════════════════════════════════════
+
+import { COLORS } from './colors.js';
+import { state } from './state.js';
+
+let cursorEl = null;
+
+// Cursor configurations per scene
+const CURSOR_CONFIGS = [
+  // Scene 0: Void - pulsing probe/question
+  {
+    shape: 'probe',
+    color: COLORS.violet,
+    size: 20,
+    glow: true
+  },
+  // Scene 1: Ignition - spark
+  {
+    shape: 'spark',
+    color: COLORS.amber,
+    size: 24,
+    glow: true
+  },
+  // Scene 2: Polvo - tentacle tendril
+  {
+    shape: 'tendril',
+    color: COLORS.teal,
+    size: 28,
+    glow: true
+  },
+  // Scene 3: Gnomes - lantern
+  {
+    shape: 'lantern',
+    color: COLORS.boon,
+    size: 22,
+    glow: true
+  },
+  // Scene 4: Titan - geode eye
+  {
+    shape: 'eye',
+    color: COLORS.honk,
+    size: 26,
+    glow: true
+  },
+  // Scene 5: Ending - spiral
+  {
+    shape: 'spiral',
+    color: COLORS.bone,
+    size: 24,
+    glow: true
+  }
+];
+
+export function initCursor() {
+  cursorEl = document.getElementById('custom-cursor');
+  if (!cursorEl) return;
+
+  // Set initial style
+  updateCursorStyle(0, 0);
+}
+
+export function updateCursor(scene, progress) {
+  if (!cursorEl) return;
+
+  // Position cursor
+  cursorEl.style.left = state.mouseX + 'px';
+  cursorEl.style.top = state.mouseY + 'px';
+
+  // Update style for current scene
+  updateCursorStyle(scene, progress);
+}
+
+function updateCursorStyle(scene, progress) {
+  if (!cursorEl) return;
+
+  const config = CURSOR_CONFIGS[scene] || CURSOR_CONFIGS[0];
+  const nextConfig = CURSOR_CONFIGS[scene + 1] || config;
+
+  // Interpolate during transitions
+  const t = state.isTransitioning ? state.transitionProgress : 0;
+  const size = config.size + (nextConfig.size - config.size) * t;
+
+  // Clear previous content
+  cursorEl.innerHTML = '';
+
+  // Create SVG cursor based on shape
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('width', size);
+  svg.setAttribute('height', size);
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.style.overflow = 'visible';
+
+  const pulsePhase = (state.totalTime * 2) % (Math.PI * 2);
+  const pulse = 0.8 + Math.sin(pulsePhase) * 0.2;
+
+  switch (config.shape) {
+    case 'probe':
+      svg.innerHTML = `
+        <circle cx="12" cy="12" r="${8 * pulse}" fill="none" stroke="${config.color}" stroke-width="2" opacity="0.7"/>
+        <circle cx="12" cy="12" r="3" fill="${config.color}" opacity="0.9"/>
+        <text x="12" y="14" text-anchor="middle" fill="${config.color}" font-size="8" opacity="${0.5 + Math.sin(pulsePhase * 2) * 0.3}">?</text>
+      `;
+      break;
+
+    case 'spark':
+      const sparkAngle = state.totalTime * 3;
+      svg.innerHTML = `
+        <circle cx="12" cy="12" r="${6 * pulse}" fill="${config.color}" opacity="0.6"/>
+        ${[0, 1, 2, 3, 4, 5].map(i => {
+          const a = sparkAngle + (i / 6) * Math.PI * 2;
+          const r1 = 6, r2 = 10 * pulse;
+          return `<line x1="${12 + Math.cos(a) * r1}" y1="${12 + Math.sin(a) * r1}"
+                        x2="${12 + Math.cos(a) * r2}" y2="${12 + Math.sin(a) * r2}"
+                        stroke="${config.color}" stroke-width="1.5" opacity="0.8"/>`;
+        }).join('')}
+      `;
+      break;
+
+    case 'tendril':
+      const wave = Math.sin(state.totalTime * 4) * 3;
+      svg.innerHTML = `
+        <path d="M12,4 Q${14 + wave},8 12,12 Q${10 - wave},16 12,20"
+              fill="none" stroke="${config.color}" stroke-width="3" stroke-linecap="round" opacity="0.8"/>
+        <circle cx="12" cy="4" r="3" fill="${config.color}" opacity="0.9"/>
+        <circle cx="12" cy="20" r="2" fill="${config.color}" opacity="0.6"/>
+      `;
+      break;
+
+    case 'lantern':
+      const flicker = 0.7 + Math.random() * 0.3;
+      svg.innerHTML = `
+        <rect x="9" y="10" width="6" height="10" rx="1" fill="none" stroke="${config.color}" stroke-width="1.5" opacity="0.6"/>
+        <circle cx="12" cy="14" r="${4 * flicker}" fill="${config.color}" opacity="${0.5 * flicker}"/>
+        <line x1="12" y1="10" x2="12" y2="6" stroke="${config.color}" stroke-width="1.5" opacity="0.6"/>
+      `;
+      break;
+
+    case 'eye':
+      const blink = Math.sin(state.totalTime * 0.5) > 0.95 ? 0.2 : 1;
+      const pupilX = 12 + (state.mouseVel.x * 0.1);
+      const pupilY = 12 + (state.mouseVel.y * 0.1);
+      svg.innerHTML = `
+        <ellipse cx="12" cy="12" rx="10" ry="${6 * blink}" fill="none" stroke="${config.color}" stroke-width="2" opacity="0.7"/>
+        <circle cx="${Math.max(8, Math.min(16, pupilX))}" cy="${Math.max(10, Math.min(14, pupilY))}" r="3" fill="${config.color}" opacity="0.9"/>
+      `;
+      break;
+
+    case 'spiral':
+      const spiralAngle = state.totalTime * 2;
+      let spiralPath = 'M12,12 ';
+      for (let i = 0; i < 20; i++) {
+        const a = spiralAngle + (i / 20) * Math.PI * 3;
+        const r = (i / 20) * 8;
+        spiralPath += `L${12 + Math.cos(a) * r},${12 + Math.sin(a) * r} `;
+      }
+      svg.innerHTML = `
+        <path d="${spiralPath}" fill="none" stroke="${config.color}" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+      `;
+      break;
+  }
+
+  // Add glow filter
+  if (config.glow) {
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    defs.innerHTML = `
+      <filter id="cursor-glow" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+        <feMerge>
+          <feMergeNode in="coloredBlur"/>
+          <feMergeNode in="SourceGraphic"/>
+        </feMerge>
+      </filter>
+    `;
+    svg.insertBefore(defs, svg.firstChild);
+    svg.style.filter = 'url(#cursor-glow)';
+  }
+
+  cursorEl.appendChild(svg);
+}

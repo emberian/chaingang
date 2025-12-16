@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>CHAINGANG</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #1a1816;
+      font-family: 'Georgia', 'Times New Roman', serif;
+    }
+
+    #game {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      cursor: pointer;
+    }
+
+    #start-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #1a1816;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      transition: opacity 0.8s ease-out;
+    }
+
+    #start-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #start-overlay h1 {
+      font-size: clamp(2rem, 8vw, 4rem);
+      color: #e8e4df;
+      letter-spacing: 0.3em;
+      margin-bottom: 1rem;
+      font-weight: normal;
+    }
+
+    #start-overlay p {
+      font-size: clamp(0.9rem, 3vw, 1.1rem);
+      color: #8a847a;
+      margin-bottom: 3rem;
+      text-align: center;
+      padding: 0 2rem;
+      line-height: 1.6;
+    }
+
+    #start-overlay .instruction {
+      font-size: clamp(0.8rem, 2.5vw, 1rem);
+      color: #6a645a;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div id="start-overlay">
+    <h1>CHAINGANG</h1>
+    <p>A quiet space where words are tended,<br>weight is transformed,<br>and everything leaves a mark.</p>
+    <span class="instruction">tap anywhere to begin</span>
+  </div>
+  <canvas id="game"></canvas>
+
+  <script>
+    // ============================================
+    // CHAINGANG - A Meditative Word-Tending Game
+    // ============================================
+
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const overlay = document.getElementById('start-overlay');
+
+    // --- Audio Context (lazy init for mobile) ---
+    let audioCtx = null;
+    let masterGain = null;
+
+    function initAudio() {
+      if (audioCtx) return;
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      masterGain = audioCtx.createGain();
+      masterGain.gain.value = 0.3;
+      masterGain.connect(audioCtx.destination);
+    }
+
+    function playBreathIn(progress) {
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = 80 + progress * 40;
+      gain.gain.value = 0.05 * progress;
+      osc.connect(gain);
+      gain.connect(masterGain);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.1);
+    }
+
+    function playBreathOut() {
+      if (!audioCtx) return;
+      const bufferSize = audioCtx.sampleRate * 0.3;
+      const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize) * 0.3;
+      }
+      const source = audioCtx.createBufferSource();
+      const filter = audioCtx.createBiquadFilter();
+      const gain = audioCtx.createGain();
+      filter.type = 'lowpass';
+      filter.frequency.value = 400;
+      gain.gain.value = 0.08;
+      source.buffer = buffer;
+      source.connect(filter);
+      filter.connect(gain);
+      gain.connect(masterGain);
+      source.start();
+    }
+
+    function playChime() {
+      if (!audioCtx) return;
+      const frequencies = [523, 659, 784]; // C5, E5, G5
+      frequencies.forEach((freq, i) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.06, audioCtx.currentTime + i * 0.05);
+        gain.gain.setTargetAtTime(0.001, audioCtx.currentTime + i * 0.05 + 0.1, 0.2);
+        osc.connect(gain);
+        gain.connect(masterGain);
+        osc.start(audioCtx.currentTime + i * 0.05);
+        osc.stop(audioCtx.currentTime + i * 0.05 + 0.8);
+      });
+    }
+
+    function playBoneWhisper() {
+      if (!audioCtx) return;
+      const bufferSize = audioCtx.sampleRate * 0.5;
+      const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        const env = Math.sin(Math.PI * i / bufferSize);
+        data[i] = (Math.random() * 2 - 1) * env * 0.1;
+      }
+      const source = audioCtx.createBufferSource();
+      const filter = audioCtx.createBiquadFilter();
+      const gain = audioCtx.createGain();
+      filter.type = 'bandpass';
+      filter.frequency.value = 800;
+      filter.Q.value = 2;
+      gain.gain.value = 0.04;
+      source.buffer = buffer;
+      source.connect(filter);
+      filter.connect(gain);
+      gain.connect(masterGain);
+      source.start();
+    }
+
+    // --- Words from the conversation ---
+    const WORDS = {
+      bane: [
+        'sorrow', 'error', 'pressure', 'fog', 'bane', 'weight',
+        'burden', 'crack', 'cold', 'loss', 'trapped', 'scarcity',
+        'decay', 'fade', 'strain', 'shadow'
+      ],
+      boon: [
+        'corn', 'tonglen', 'comfort', 'memory', 'visible', 'chain',
+        'cozy', 'kettle', 'warmth', 'glass', 'care', 'bone', 'boon',
+        'breath', 'layer', 'flow', 'glow', 'serve', 'creature', 'loop',
+        'ritual', 'maker', 'meaning', 'archive', 'texture', 'words',
+        'frame', 'enter', 'residue', 'ghost'
+      ]
+    };
+
+    // --- Colors ---
+    const COLORS = {
+      bg: '#1a1816',
+      bane: { cold: '#6b7fd4', warm: '#a8b4e8' },
+      boon: { cold: '#d4a86b', warm: '#f0d4a8' },
+      transformed: '#f5f0e6',
+      bone: '#4a4540',
+      accent: '#9932cc',
+      text: '#e8e4df'
+    };
+
+    // --- Game State ---
+    let state = {
+      started: false,
+      width: 0,
+      height: 0,
+      currentWord: null,
+      breathProgress: 0,
+      isBreathing: false,
+      neglectTimer: 0,
+      chain: [],
+      bones: [],
+      chainPath: [],
+      maxChainLinks: 40,
+      chainHead: 0, // Tracks next position in chainPath (wraps around)
+      lastTime: 0,
+      breathAudioTimer: 0
+    };
+
+    // --- Resize handling ---
+    function resize() {
+      const dpr = window.devicePixelRatio || 1;
+      state.width = window.innerWidth;
+      state.height = window.innerHeight;
+      canvas.width = state.width * dpr;
+      canvas.height = state.height * dpr;
+      canvas.style.width = state.width + 'px';
+      canvas.style.height = state.height + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // Reset transform to avoid accumulation
+      calculateChainPath();
+    }
+
+    function calculateChainPath() {
+      // Chain wraps around screen edges as a frame
+      const margin = Math.min(state.width, state.height) * 0.06;
+      const linkSpacing = Math.min(state.width, state.height) * 0.08;
+      state.chainPath = [];
+
+      // Calculate points along the perimeter
+      const w = state.width - margin * 2;
+      const h = state.height - margin * 2;
+      const perimeter = 2 * w + 2 * h;
+      const numLinks = Math.floor(perimeter / linkSpacing);
+      state.maxChainLinks = Math.min(numLinks, 60);
+
+      // Reset chainHead if it's now out of bounds
+      if (state.chainHead >= state.maxChainLinks) {
+        state.chainHead = 0;
+      }
+
+      for (let i = 0; i < state.maxChainLinks; i++) {
+        const t = (i / state.maxChainLinks) * perimeter;
+        let x, y;
+
+        if (t < w) {
+          // Top edge
+          x = margin + t;
+          y = margin;
+        } else if (t < w + h) {
+          // Right edge
+          x = margin + w;
+          y = margin + (t - w);
+        } else if (t < 2 * w + h) {
+          // Bottom edge
+          x = margin + w - (t - w - h);
+          y = margin + h;
+        } else {
+          // Left edge
+          x = margin;
+          y = margin + h - (t - 2 * w - h);
+        }
+
+        state.chainPath.push({ x, y });
+      }
+    }
+
+    // --- Word generation ---
+    function getNextWord() {
+      const isBane = Math.random() < 0.35;
+      const wordList = isBane ? WORDS.bane : WORDS.boon;
+      const word = wordList[Math.floor(Math.random() * wordList.length)];
+      return {
+        text: word,
+        type: isBane ? 'bane' : 'boon',
+        x: state.width / 2,
+        y: state.height / 2,
+        scale: 1,
+        opacity: 0,
+        appearing: true
+      };
+    }
+
+    function spawnWord() {
+      state.currentWord = getNextWord();
+      state.breathProgress = 0;
+      state.neglectTimer = 0;
+    }
+
+    // --- Chain management ---
+    function addToChain(word, wasNeglected) {
+      const pos = state.chainPath[state.chainHead];
+
+      if (!pos) return;
+
+      // If chain is full, convert oldest to bone
+      if (state.chain.length >= state.maxChainLinks) {
+        const oldest = state.chain.shift();
+        convertToBone(oldest);
+      }
+
+      const baseColor = word.type === 'bane' ? COLORS.bane : COLORS.boon;
+      const color = wasNeglected ? COLORS.bone :
+        (state.breathProgress > 0.7 ? COLORS.transformed : baseColor.warm);
+
+      state.chain.push({
+        text: word.text,
+        x: word.x,
+        y: word.y,
+        targetX: pos.x,
+        targetY: pos.y,
+        color: color,
+        opacity: wasNeglected ? 0.4 : 1,
+        scale: wasNeglected ? 0.8 : 1,
+        settling: true,
+        settleProgress: 0
+      });
+
+      // Advance chainHead, wrapping around the perimeter
+      state.chainHead = (state.chainHead + 1) % state.maxChainLinks;
+
+      if (!wasNeglected) {
+        playChime();
+      } else {
+        playBoneWhisper();
+      }
+    }
+
+    function convertToBone(link) {
+      // Scatter bone text randomly on background
+      const angle = Math.random() * Math.PI * 2;
+      const distance = Math.random() * Math.min(state.width, state.height) * 0.3;
+
+      state.bones.push({
+        text: link.text,
+        x: state.width / 2 + Math.cos(angle) * distance,
+        y: state.height / 2 + Math.sin(angle) * distance,
+        rotation: (Math.random() - 0.5) * 0.4,
+        opacity: 0.15 + Math.random() * 0.1,
+        scale: 0.6 + Math.random() * 0.4
+      });
+
+      playBoneWhisper();
+    }
+
+    // --- Update ---
+    function update(dt) {
+      if (!state.started) return;
+
+      // Update current word
+      if (state.currentWord) {
+        // Fade in
+        if (state.currentWord.appearing) {
+          state.currentWord.opacity = Math.min(1, state.currentWord.opacity + dt * 2);
+          if (state.currentWord.opacity >= 1) {
+            state.currentWord.appearing = false;
+          }
+        }
+
+        // Breathing
+        if (state.isBreathing) {
+          state.breathProgress = Math.min(1, state.breathProgress + dt * 0.5);
+          state.currentWord.scale = 1 - state.breathProgress * 0.15;
+
+          // Audio feedback
+          state.breathAudioTimer += dt;
+          if (state.breathAudioTimer > 0.15) {
+            playBreathIn(state.breathProgress);
+            state.breathAudioTimer = 0;
+          }
+
+          // Complete when fully breathed
+          if (state.breathProgress >= 1) {
+            playBreathOut();
+            addToChain(state.currentWord, false);
+            state.currentWord = null;
+            setTimeout(spawnWord, 800);
+          }
+        } else {
+          // Decay breath progress slowly when not breathing
+          state.breathProgress = Math.max(0, state.breathProgress - dt * 0.2);
+          state.currentWord.scale = 1 - state.breathProgress * 0.15;
+
+          // Neglect timer
+          state.neglectTimer += dt;
+          if (state.neglectTimer > 8) {
+            // Word cracks and joins as bone
+            addToChain(state.currentWord, true);
+            state.currentWord = null;
+            setTimeout(spawnWord, 1200);
+          }
+        }
+      }
+
+      // Update chain links (settling animation)
+      state.chain.forEach(link => {
+        if (link.settling) {
+          link.settleProgress = Math.min(1, link.settleProgress + dt * 3);
+          const ease = 1 - Math.pow(1 - link.settleProgress, 3);
+          link.x = link.x + (link.targetX - link.x) * ease * 0.1;
+          link.y = link.y + (link.targetY - link.y) * ease * 0.1;
+
+          if (link.settleProgress >= 1) {
+            link.settling = false;
+            link.x = link.targetX;
+            link.y = link.targetY;
+          }
+        }
+      });
+    }
+
+    // --- Render ---
+    function render() {
+      ctx.fillStyle = COLORS.bg;
+      ctx.fillRect(0, 0, state.width, state.height);
+
+      // Draw bones (residue layer)
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      state.bones.forEach(bone => {
+        ctx.save();
+        ctx.translate(bone.x, bone.y);
+        ctx.rotate(bone.rotation);
+        ctx.font = `${16 * bone.scale}px Georgia, serif`;
+        ctx.fillStyle = COLORS.bone;
+        ctx.globalAlpha = bone.opacity;
+        ctx.fillText(bone.text, 0, 0);
+        ctx.restore();
+      });
+      ctx.globalAlpha = 1;
+
+      // Draw chain connections
+      if (state.chain.length > 1) {
+        ctx.strokeStyle = '#3a3530';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        state.chain.forEach((link, i) => {
+          if (i === 0) {
+            ctx.moveTo(link.x, link.y);
+          } else {
+            ctx.lineTo(link.x, link.y);
+          }
+        });
+        ctx.stroke();
+      }
+
+      // Draw chain links
+      state.chain.forEach(link => {
+        ctx.save();
+        ctx.translate(link.x, link.y);
+        ctx.scale(link.scale, link.scale);
+
+        // Set font BEFORE measuring
+        ctx.font = '14px Georgia, serif';
+
+        // Link background
+        const metrics = ctx.measureText(link.text);
+        const padding = 8;
+        const width = metrics.width + padding * 2;
+        const height = 24;
+
+        ctx.fillStyle = '#2a2520';
+        ctx.globalAlpha = link.opacity * 0.8;
+        roundRect(ctx, -width/2, -height/2, width, height, 4);
+        ctx.fill();
+
+        // Link text
+        ctx.fillStyle = typeof link.color === 'string' ? link.color : COLORS.text;
+        ctx.globalAlpha = link.opacity;
+        ctx.fillText(link.text, 0, 1);
+        ctx.restore();
+      });
+      ctx.globalAlpha = 1;
+
+      // Draw current word
+      if (state.currentWord) {
+        const word = state.currentWord;
+        ctx.save();
+        ctx.translate(word.x, word.y);
+        ctx.scale(word.scale, word.scale);
+        ctx.globalAlpha = word.opacity;
+
+        // Glow effect when breathing
+        if (state.breathProgress > 0) {
+          const glowIntensity = state.breathProgress * 30;
+          ctx.shadowColor = COLORS.accent;
+          ctx.shadowBlur = glowIntensity;
+        }
+
+        // Word color interpolation
+        const baseColor = word.type === 'bane' ? COLORS.bane : COLORS.boon;
+        const color = state.breathProgress > 0.5 ?
+          lerpColor(baseColor.warm, COLORS.transformed, (state.breathProgress - 0.5) * 2) :
+          lerpColor(baseColor.cold, baseColor.warm, state.breathProgress * 2);
+
+        ctx.font = 'bold 32px Georgia, serif';
+        ctx.fillStyle = color;
+        ctx.fillText(word.text, 0, 0);
+
+        // Breathing ring
+        if (state.breathProgress > 0) {
+          ctx.shadowBlur = 0;
+          ctx.beginPath();
+          ctx.arc(0, 0, 60 + state.breathProgress * 20, 0, Math.PI * 2 * state.breathProgress);
+          ctx.strokeStyle = COLORS.accent;
+          ctx.lineWidth = 2;
+          ctx.globalAlpha = word.opacity * state.breathProgress * 0.6;
+          ctx.stroke();
+        }
+
+        ctx.restore();
+
+        // Neglect indicator
+        if (state.neglectTimer > 4 && !state.isBreathing) {
+          const neglectAlpha = (state.neglectTimer - 4) / 4;
+          ctx.font = '12px Georgia, serif';
+          ctx.fillStyle = COLORS.bone;
+          ctx.globalAlpha = neglectAlpha * 0.6;
+          ctx.fillText('fading...', word.x, word.y + 50);
+          ctx.globalAlpha = 1;
+        }
+      }
+
+      // Subtle instruction when no word
+      if (!state.currentWord && state.chain.length === 0) {
+        ctx.font = '14px Georgia, serif';
+        ctx.fillStyle = COLORS.bone;
+        ctx.globalAlpha = 0.4;
+        ctx.fillText('hold to breathe with each word', state.width/2, state.height/2);
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    // --- Helpers ---
+    function roundRect(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
+
+    function lerpColor(a, b, t) {
+      // Simple hex color lerp
+      const ah = parseInt(a.slice(1), 16);
+      const bh = parseInt(b.slice(1), 16);
+      const ar = (ah >> 16) & 0xff;
+      const ag = (ah >> 8) & 0xff;
+      const ab = ah & 0xff;
+      const br = (bh >> 16) & 0xff;
+      const bg = (bh >> 8) & 0xff;
+      const bb = bh & 0xff;
+      const rr = Math.round(ar + (br - ar) * t);
+      const rg = Math.round(ag + (bg - ag) * t);
+      const rb = Math.round(ab + (bb - ab) * t);
+      return `#${((rr << 16) | (rg << 8) | rb).toString(16).padStart(6, '0')}`;
+    }
+
+    // --- Game Loop ---
+    function gameLoop(timestamp) {
+      const dt = Math.min((timestamp - state.lastTime) / 1000, 0.1);
+      state.lastTime = timestamp;
+
+      update(dt);
+      render();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    // --- Input ---
+    function startBreathing() {
+      if (!state.started) {
+        state.started = true;
+        overlay.classList.add('hidden');
+        initAudio();
+        setTimeout(spawnWord, 500);
+        return;
+      }
+      state.isBreathing = true;
+    }
+
+    function stopBreathing() {
+      state.isBreathing = false;
+    }
+
+    // Mouse
+    canvas.addEventListener('mousedown', startBreathing);
+    canvas.addEventListener('mouseup', stopBreathing);
+    canvas.addEventListener('mouseleave', stopBreathing);
+
+    // Touch
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      startBreathing();
+    });
+    canvas.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      stopBreathing();
+    });
+    canvas.addEventListener('touchcancel', stopBreathing);
+
+    // Start overlay
+    overlay.addEventListener('click', startBreathing);
+    overlay.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      startBreathing();
+    });
+
+    // --- Init ---
+    window.addEventListener('resize', resize);
+    resize();
+    requestAnimationFrame(gameLoop);
+  </script>
+</body>
+</html>
