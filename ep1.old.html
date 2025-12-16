@@ -240,6 +240,16 @@ function initFinalSpirals() {
 function draw() {
   // Update timing
   const dt = deltaTime / 1000;
+
+  // If not started, show title card and wait for click
+  if (NOT_STARTED) {
+    drawBackground();
+    drawTitleCard();
+    drawVignette();
+    updateCursor();
+    return;
+  }
+
   totalTime += dt;
 
   // Calculate current scene
@@ -1333,7 +1343,49 @@ function drawEpisodeTitle() {
   }
 }
 
+function drawTitleCard() {
+  // Static title card shown before animation starts
+  push();
+  textAlign(CENTER, CENTER);
+  textFont('Georgia');
+
+  // Main title
+  textSize(36);
+  fill(245, 240, 230, 0.8);
+  text("The Thirteenth Turning", width / 2, height / 2 - 30);
+
+  // Subtitle
+  textSize(16);
+  fill(168, 196, 232, 0.5);
+  text("episode one", width / 2, height / 2 + 15);
+
+  // Instruction - pulse effect
+  const pulse = sin(millis() * 0.003) * 0.15 + 0.4;
+  textSize(12);
+  fill(100, 90, 120, pulse);
+  text("click to begin", width / 2, height / 2 + 50);
+
+  pop();
+}
+
+function updateCursor() {
+  // Update custom cursor position and color
+  if (cursorEl) {
+    cursorEl.style.left = mouseX + 'px';
+    cursorEl.style.top = mouseY + 'px';
+    const hue = map(sin(millis() * 0.002), -1, 1, 180, 280);
+    cursorEl.style.borderColor = `hsla(${hue}, 80%, 60%, 0.6)`;
+  }
+}
+
 function mousePressed() {
+  // Click to start animation from title card
+  if (NOT_STARTED) {
+    NOT_STARTED = false;
+    totalTime = 0;
+    return;
+  }
+
   // Click to restart when animation ends (if not looping)
   if (!LOOP_ANIMATION && totalTime >= TOTAL_DURATION) {
     totalTime = 0;
@@ -1344,7 +1396,6 @@ function mousePressed() {
     letterFragments.forEach(f => f.opacity = 0);
     finalSpirals.forEach(s => { s.opacity = 0; s.glowIntensity = 0; });
   }
-  if (!NOT_STARTED) { NOT_STARTED = true; totalTime = 4; }
 }
 
 // ─── WINDOW RESIZE ──────────────────────────────────────────────────────────
