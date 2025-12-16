@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>spwashi | chaingang</title>
+  <style>
+    :root {
+      --void: #0a0812;
+      --deep: #1a1420;
+      --clay: #2a2030;
+      --bone: #e8e0d4;
+      --amber: #d4a86b;
+      --violet: #9932cc;
+      --teal: #4a9090;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Georgia', 'Times New Roman', serif;
+      background: var(--void);
+      color: var(--bone);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* Animated background */
+    .bg-spiral {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.15;
+      background:
+        radial-gradient(ellipse at 20% 30%, var(--violet) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 70%, var(--teal) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 50%, var(--deep) 0%, transparent 70%);
+      animation: drift 30s ease-in-out infinite;
+    }
+
+    @keyframes drift {
+      0%, 100% { transform: scale(1) rotate(0deg); }
+      50% { transform: scale(1.1) rotate(3deg); }
+    }
+
+    /* Header */
+    header {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      padding: 4rem 2rem 2rem;
+      border-bottom: 1px solid rgba(232, 224, 212, 0.1);
+    }
+
+    .logo {
+      font-size: clamp(2.5rem, 8vw, 4rem);
+      font-weight: normal;
+      letter-spacing: 0.4em;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, var(--bone) 0%, var(--amber) 50%, var(--violet) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .tagline {
+      font-size: clamp(0.9rem, 2.5vw, 1.1rem);
+      color: rgba(232, 224, 212, 0.6);
+      font-style: italic;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    /* Main content */
+    main {
+      position: relative;
+      z-index: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 4rem 2rem;
+    }
+
+    .section-title {
+      font-size: 1rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--amber);
+      margin-bottom: 2rem;
+      opacity: 0.8;
+    }
+
+    /* Gallery grid */
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 2rem;
+    }
+
+    /* Project card */
+    .card {
+      background: linear-gradient(145deg, var(--deep) 0%, var(--clay) 100%);
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(232, 224, 212, 0.08);
+      transition: all 0.4s ease;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+
+    .card:hover {
+      transform: translateY(-8px);
+      border-color: var(--violet);
+      box-shadow:
+        0 20px 40px rgba(0, 0, 0, 0.4),
+        0 0 60px rgba(153, 50, 204, 0.15);
+    }
+
+    .card-visual {
+      height: 200px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card-visual canvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    .card-content {
+      padding: 1.5rem;
+    }
+
+    .card-episode {
+      font-size: 0.75rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--teal);
+      margin-bottom: 0.5rem;
+    }
+
+    .card-title {
+      font-size: 1.5rem;
+      margin-bottom: 0.75rem;
+      color: var(--bone);
+    }
+
+    .card-description {
+      font-size: 0.95rem;
+      color: rgba(232, 224, 212, 0.7);
+      margin-bottom: 1rem;
+    }
+
+    .card-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .tag {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.75rem;
+      background: rgba(232, 224, 212, 0.08);
+      border-radius: 20px;
+      color: rgba(232, 224, 212, 0.6);
+    }
+
+    /* Coming soon placeholder */
+    .card.coming-soon {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+
+    .card.coming-soon .card-visual {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--clay);
+    }
+
+    .card.coming-soon .card-visual::after {
+      content: '...';
+      font-size: 2rem;
+      color: rgba(232, 224, 212, 0.3);
+      letter-spacing: 0.5em;
+    }
+
+    /* Footer */
+    footer {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      padding: 3rem 2rem;
+      border-top: 1px solid rgba(232, 224, 212, 0.1);
+      color: rgba(232, 224, 212, 0.4);
+      font-size: 0.85rem;
+    }
+
+    footer a {
+      color: var(--amber);
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      header {
+        padding: 3rem 1.5rem 1.5rem;
+      }
+      main {
+        padding: 2rem 1rem;
+      }
+      .gallery {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-spiral"></div>
+
+  <header>
+    <h1 class="logo">CHAINGANG</h1>
+    <p class="tagline">
+      Explorations in consciousness, emergence, and the spaces between.
+      <br>A collection from the spwashi ecosystem.
+    </p>
+  </header>
+
+  <main>
+    <h2 class="section-title">Episodes</h2>
+
+    <div class="gallery">
+      <!-- CHAINGANG: Word-Tending -->
+      <a href="./chaingang.html" class="card">
+        <div class="card-visual">
+          <canvas id="chaingang-preview"></canvas>
+        </div>
+        <div class="card-content">
+          <span class="card-episode">Experience</span>
+          <h3 class="card-title">CHAINGANG</h3>
+          <p class="card-description">
+            A meditative word-tending space. Hold to breathe with each word,
+            transforming weight into meaning. Everything leaves a mark.
+          </p>
+          <div class="card-tags">
+            <span class="tag">meditative</span>
+            <span class="tag">canvas</span>
+            <span class="tag">audio</span>
+          </div>
+        </div>
+      </a>
+      
+      <!-- EP1: The Thirteenth Turning -->
+      <a href="./ep1/" class="card">
+        <div class="card-visual">
+          <canvas id="ep1-preview"></canvas>
+        </div>
+        <div class="card-content">
+          <span class="card-episode">Episode 1</span>
+          <h3 class="card-title">The Thirteenth Turning</h3>
+          <p class="card-description">
+            An interactive journey through primordial emergence. Witness particles
+            coalesce, spirals awaken, and titans rise in this 2-minute animated experience.
+          </p>
+          <div class="card-tags">
+            <span class="tag">p5.js</span>
+            <span class="tag">interactive</span>
+            <span class="tag">generative</span>
+          </div>
+        </div>
+      </a>
+
+      <!-- Placeholder for future episodes -->
+      <div class="card coming-soon">
+        <div class="card-visual"></div>
+        <div class="card-content">
+          <span class="card-episode">Episode 2</span>
+          <h3 class="card-title">Coming Soon</h3>
+          <p class="card-description">
+            The spiral continues...
+          </p>
+          <div class="card-tags">
+            <span class="tag">in development</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>
+      Part of the <a href="https://github.com/emberian" target="_blank">spwashi</a> ecosystem
+    </p>
+  </footer>
+
+  <script>
+    // Animated preview for EP1 card
+    (function() {
+      const canvas = document.getElementById('ep1-preview');
+      if (!canvas) return;
+
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+
+      function resize() {
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.scale(dpr, dpr);
+      }
+
+      resize();
+      window.addEventListener('resize', resize);
+
+      // Particle system for preview
+      const particles = [];
+      const numParticles = 60;
+
+      for (let i = 0; i < numParticles; i++) {
+        particles.push({
+          x: Math.random(),
+          y: Math.random(),
+          vx: (Math.random() - 0.5) * 0.002,
+          vy: (Math.random() - 0.5) * 0.002,
+          size: Math.random() * 2 + 1,
+          hue: Math.random() * 60 + 260 // violet to amber range
+        });
+      }
+
+      let time = 0;
+
+      function animate() {
+        const rect = canvas.getBoundingClientRect();
+        const w = rect.width;
+        const h = rect.height;
+
+        // Clear with fade
+        ctx.fillStyle = 'rgba(10, 8, 18, 0.15)';
+        ctx.fillRect(0, 0, w, h);
+
+        // Central spiral
+        const cx = w / 2;
+        const cy = h / 2;
+
+        ctx.strokeStyle = 'rgba(153, 50, 204, 0.3)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let i = 0; i < 200; i++) {
+          const angle = i * 0.1 + time * 0.5;
+          const radius = i * 0.4;
+          const x = cx + Math.cos(angle) * radius;
+          const y = cy + Math.sin(angle) * radius;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // Update and draw particles
+        particles.forEach(p => {
+          // Spiral attraction
+          const dx = 0.5 - p.x;
+          const dy = 0.5 - p.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist > 0.01) {
+            // Tangential force (spiral)
+            const perpX = -dy / dist * 0.0002;
+            const perpY = dx / dist * 0.0002;
+            p.vx += perpX + dx * 0.00005;
+            p.vy += perpY + dy * 0.00005;
+          }
+
+          p.x += p.vx;
+          p.y += p.vy;
+
+          // Wrap around
+          if (p.x < 0) p.x = 1;
+          if (p.x > 1) p.x = 0;
+          if (p.y < 0) p.y = 1;
+          if (p.y > 1) p.y = 0;
+
+          // Damping
+          p.vx *= 0.99;
+          p.vy *= 0.99;
+
+          // Draw
+          const hue = p.hue + Math.sin(time + p.x * 10) * 20;
+          ctx.beginPath();
+          ctx.arc(p.x * w, p.y * h, p.size, 0, Math.PI * 2);
+          ctx.fillStyle = `hsla(${hue}, 60%, 60%, 0.8)`;
+          ctx.fill();
+        });
+
+        time += 0.02;
+        requestAnimationFrame(animate);
+      }
+
+      animate();
+    })();
+
+    // Animated preview for CHAINGANG card
+    (function() {
+      const canvas = document.getElementById('chaingang-preview');
+      if (!canvas) return;
+
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+
+      function resize() {
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.scale(dpr, dpr);
+      }
+
+      resize();
+      window.addEventListener('resize', resize);
+
+      // Words floating and forming chain
+      const words = ['breath', 'chain', 'bone', 'warmth', 'ritual', 'maker', 'flow'];
+      const floatingWords = words.map((word, i) => ({
+        text: word,
+        x: Math.random(),
+        y: Math.random(),
+        vx: (Math.random() - 0.5) * 0.001,
+        vy: (Math.random() - 0.5) * 0.001,
+        opacity: 0.3 + Math.random() * 0.4,
+        scale: 0.8 + Math.random() * 0.4
+      }));
+
+      let time = 0;
+
+      function animate() {
+        const rect = canvas.getBoundingClientRect();
+        const w = rect.width;
+        const h = rect.height;
+
+        // Clear with fade
+        ctx.fillStyle = 'rgba(26, 24, 22, 0.12)';
+        ctx.fillRect(0, 0, w, h);
+
+        // Draw chain connection lines
+        ctx.strokeStyle = 'rgba(212, 168, 107, 0.15)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        floatingWords.forEach((word, i) => {
+          if (i === 0) {
+            ctx.moveTo(word.x * w, word.y * h);
+          } else {
+            ctx.lineTo(word.x * w, word.y * h);
+          }
+        });
+        ctx.stroke();
+
+        // Update and draw words
+        floatingWords.forEach((word, i) => {
+          // Gentle drift
+          word.x += word.vx + Math.sin(time + i) * 0.0003;
+          word.y += word.vy + Math.cos(time + i * 0.7) * 0.0003;
+
+          // Wrap around
+          if (word.x < 0.1) word.vx += 0.0001;
+          if (word.x > 0.9) word.vx -= 0.0001;
+          if (word.y < 0.1) word.vy += 0.0001;
+          if (word.y > 0.9) word.vy -= 0.0001;
+
+          // Damping
+          word.vx *= 0.995;
+          word.vy *= 0.995;
+
+          // Pulsing opacity
+          const pulse = 0.5 + Math.sin(time * 2 + i * 0.5) * 0.3;
+
+          // Draw word
+          ctx.font = `${12 * word.scale}px Georgia, serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = `rgba(232, 228, 223, ${word.opacity * pulse})`;
+          ctx.fillText(word.text, word.x * w, word.y * h);
+        });
+
+        // Central breathing circle
+        const breathPhase = (Math.sin(time * 0.8) + 1) / 2;
+        const radius = 15 + breathPhase * 10;
+        ctx.beginPath();
+        ctx.arc(w / 2, h / 2, radius, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(153, 50, 204, ${0.3 + breathPhase * 0.3})`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        time += 0.02;
+        requestAnimationFrame(animate);
+      }
+
+      animate();
+    })();
+  </script>
+</body>
+</html>
