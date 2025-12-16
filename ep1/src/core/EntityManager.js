@@ -16,6 +16,10 @@ export class EntityManager {
 
     // Event listeners
     this.listeners = new Map();     // event -> Set<callback>
+
+    // Cache for active entities
+    this._activeCache = [];
+    this._activeCacheDirty = true;
   }
 
   // ─── SPAWNING ─────────────────────────────────────────────────────────────
@@ -57,6 +61,9 @@ export class EntityManager {
       this._emit('spawn', { entity });
     }
 
+    if (this.pendingSpawn.length > 0) {
+      this._invalidateActiveCache();
+    }
     this.pendingSpawn = [];
   }
 
@@ -97,6 +104,9 @@ export class EntityManager {
       this._emit('dispose', { entity });
     }
 
+    if (this.pendingDispose.length > 0) {
+      this._invalidateActiveCache();
+    }
     this.pendingDispose = [];
   }
 
@@ -111,7 +121,20 @@ export class EntityManager {
   }
 
   getActive() {
-    return this.getAll().filter(e => e.state === EntityState.ACTIVE);
+    if (this._activeCacheDirty) {
+      this._activeCache = [];
+      for (const entity of this.entities.values()) {
+        if (entity.state === EntityState.ACTIVE) {
+          this._activeCache.push(entity);
+        }
+      }
+      this._activeCacheDirty = false;
+    }
+    return this._activeCache;
+  }
+
+  _invalidateActiveCache() {
+    this._activeCacheDirty = true;
   }
 
   getByTag(tag) {
@@ -122,17 +145,38 @@ export class EntityManager {
   getByTags(...tags) {
     if (tags.length === 0) return [];
 
-    // Start with first tag's set
-    let result = new Set(this.byTag.get(tags[0]) || []);
+    // Start with first tag's set (smallest for efficiency)
+    let smallestSet = this.byTag.get(tags[0]);
+    let smallestSize = smallestSet ? smallestSet.size : 0;
 
-    // Intersect with remaining tags
     for (let i = 1; i < tags.length; i++) {
       const tagSet = this.byTag.get(tags[i]);
-      if (!tagSet) return [];
-      result = new Set([...result].filter(e => tagSet.has(e)));
+      if (!tagSet || tagSet.size === 0) return [];
+      if (tagSet.size < smallestSize) {
+        smallestSet = tagSet;
+        smallestSize = tagSet.size;
+      }
     }
 
-    return [...result];
+    if (!smallestSet || smallestSet.size === 0) return [];
+
+    // Filter entities that have all tags
+    const result = [];
+    for (const entity of smallestSet) {
+      let hasAllTags = true;
+      for (const tag of tags) {
+        const tagSet = this.byTag.get(tag);
+        if (!tagSet || !tagSet.has(entity)) {
+          hasAllTags = false;
+          break;
+        }
+      }
+      if (hasAllTags) {
+        result.push(entity);
+      }
+    }
+
+    return result;
   }
 
   getByLayer(layer) {
@@ -181,29 +225,35 @@ export class EntityManager {
   // ─── SCENE TRANSITIONS ────────────────────────────────────────────────────
 
   // Mark entities as dormant (they persist but don't update)
-  markDormant(tagOrIds) {
+  markDormant(tagOrIds, ctx = null) {
     const entities = typeof tagOrIds === 'string'
       ? this.getByTag(tagOrIds)
       : tagOrIds.map(id => this.get(id)).filter(Boolean);
 
+    let changed = false;
     for (const entity of entities) {
       if (entity.state === EntityState.ACTIVE) {
         entity.sleep();
-        entity.onDormant();
+        entity.onDormant(ctx);
+        changed = true;
       }
     }
+    if (changed) this._invalidateActiveCache();
   }
 
   // Wake dormant entities
-  wake(tagOrIds) {
+  wake(tagOrIds, ctx = null) {
     const entities = typeof tagOrIds === 'string'
       ? this.getByTag(tagOrIds).filter(e => e.state === EntityState.DORMANT)
       : tagOrIds.map(id => this.get(id)).filter(e => e && e.state === EntityState.DORMANT);
 
+    let changed = false;
     for (const entity of entities) {
       entity.wake();
-      entity.onWake();
+      entity.onWake(ctx);
+      changed = true;
     }
+    if (changed) this._invalidateActiveCache();
   }
 
   // Dispose all entities with a tag

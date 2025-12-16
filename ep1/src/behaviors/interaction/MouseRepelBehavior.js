@@ -17,7 +17,6 @@ export class MouseRepelBehavior extends Behavior {
     const physics = entity.getComponent('physics');
     if (!physics) return;
 
-    const transform = entity.transform;
     const pos = entity.getWorldPosition();
 
     // Calculate distance to mouse

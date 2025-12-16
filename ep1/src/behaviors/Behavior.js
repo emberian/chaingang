@@ -10,6 +10,7 @@ export class Behavior {
     this.priority = config.priority || 0;  // Lower = earlier execution
     this.enabled = config.enabled !== false;
     this.conditions = config.conditions || []; // Array of (entity, ctx) => boolean
+    this.config = config; // Store config for cloning
   }
 
   // Check if behavior should apply this frame
@@ -136,8 +137,10 @@ export class SmoothValueBehavior extends Behavior {
   }
 
   onUpdate(entity, ctx, dt) {
-    // Smooth interpolation
-    this.value += (this.target - this.value) * this.smoothing;
+    // Smooth interpolation (frame-rate independent using exponential decay)
+    // smoothing of 0.1 at 60fps becomes the reference
+    const factor = 1 - Math.pow(1 - this.smoothing, dt * 60);
+    this.value += (this.target - this.value) * factor;
 
     // Apply to property if specified
     if (this.propertyPath) {

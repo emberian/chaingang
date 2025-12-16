@@ -17,6 +17,8 @@ export const COLORS = {
 
   // Accent Colors
   violet: '#9932cc',
+  magenta: '#cc32aa',
+  blush: '#e8a4c8',
   teal: '#2dd4bf',
   amber: '#d4a86b',
   gold: '#f0d4a8',

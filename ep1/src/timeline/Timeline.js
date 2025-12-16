@@ -194,7 +194,7 @@ export class Timeline {
       if (!cue.enabled) continue;
       if (cue.fired && cue.once) continue;
 
-      if (cue.time >= previousTime && cue.time <= this.time) {
+      if (cue.time > previousTime && cue.time <= this.time) {
         cue.callback(ctx, this);
         cue.fired = true;
       }

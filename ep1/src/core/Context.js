@@ -126,9 +126,9 @@ export class Context {
       }
     }
 
-    // Also notify audio reactor if present
-    if (this.audio && this.audio.reactor) {
-      this.audio.reactor.onEvent(event, data, this);
+    // Also notify audio reactor if present (stored on context, not audio engine)
+    if (this.audioReactor) {
+      this.audioReactor.trigger(event, data);
     }
   }
 

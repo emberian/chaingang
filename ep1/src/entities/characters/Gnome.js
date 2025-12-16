@@ -8,6 +8,16 @@ import { COLORS, hexToRgb, lerpColor } from '../../config/colors.js';
 
 const CAP_SHAPES = ['round', 'pointed', 'wavy', 'flat'];
 
+// Pre-cached RGB values for render performance
+const BONE_RGB = hexToRgb(COLORS.bone);
+const CLAY_RGB = hexToRgb(COLORS.clay);
+// Pre-computed stem color (bone + 30% clay blend)
+const STEM_RGB = {
+  r: BONE_RGB.r + (CLAY_RGB.r - BONE_RGB.r) * 0.3,
+  g: BONE_RGB.g + (CLAY_RGB.g - BONE_RGB.g) * 0.3,
+  b: BONE_RGB.b + (CLAY_RGB.b - BONE_RGB.b) * 0.3
+};
+
 export class Gnome extends Entity {
   constructor(config = {}) {
     super({
@@ -33,14 +43,17 @@ export class Gnome extends Entity {
     this.size = this.isElder ? (16 + Math.random() * 6) : (8 + Math.random() * 6);
     this.capShape = config.capShape || CAP_SHAPES[Math.floor(Math.random() * CAP_SHAPES.length)];
     this.capColor = config.capColor || lerpColor(COLORS.clay, COLORS.crimson, Math.random());
+    this.capRgb = hexToRgb(this.capColor); // Pre-cache RGB
 
     // Lantern
     this.lanternGlow = 0.3 + Math.random() * 0.5;
     this.lanternColor = config.lanternColor || (Math.random() < 0.5 ? COLORS.honk : COLORS.amber);
+    this.lanternRgb = hexToRgb(this.lanternColor); // Pre-cache RGB
 
     // Geode eyes
     this.eyeGlow = 0.3 + Math.random() * 0.4;
     this.eyeColor = Math.random() < 0.5 ? COLORS.honk : COLORS.violet;
+    this.eyeRgb = hexToRgb(this.eyeColor); // Pre-cache RGB
     this.lookAngle = 0;
 
     // Animation
@@ -57,8 +70,7 @@ export class Gnome extends Entity {
   }
 
   onUpdate(ctx, dt) {
-    // Bob animation
-    const bob = Math.sin(ctx.time.total * 2 + this.bobOffset) * 2;
+    const physics = this.getComponent('physics');
 
     // Look toward mouse
     this.lookAngle += (
@@ -77,17 +89,25 @@ export class Gnome extends Entity {
       }
     }
 
-    // Return to base position
-    if (this.scattered) {
-      this.transform.x += this.scatterVel.x;
-      this.transform.y += this.scatterVel.y;
-      this.scatterVel.x *= 0.94;
-      this.scatterVel.y *= 0.94;
+    // Apply scatter and return forces using physics
+    if (this.scattered && physics) {
+      // Apply scatter velocity as force
+      physics.applyForce(this.scatterVel.x * 60, this.scatterVel.y * 60);
 
-      this.transform.x += (this.baseX - this.transform.x) * 0.03;
-      this.transform.y += (this.baseY - this.transform.y) * 0.03;
+      // Decay scatter velocity (frame-rate independent)
+      const decay = Math.pow(0.94, dt * 60);
+      this.scatterVel.x *= decay;
+      this.scatterVel.y *= decay;
 
-      if (Math.hypot(this.transform.x - this.baseX, this.transform.y - this.baseY) < 2) {
+      // Apply return-to-base force
+      const returnForce = 0.03 * 60;
+      physics.applyForce(
+        (this.baseX - this.transform.x) * returnForce,
+        (this.baseY - this.transform.y) * returnForce
+      );
+
+      if (Math.hypot(this.transform.x - this.baseX, this.transform.y - this.baseY) < 2 &&
+          Math.abs(this.scatterVel.x) < 0.1 && Math.abs(this.scatterVel.y) < 0.1) {
         this.scattered = false;
       }
     }
@@ -114,9 +134,8 @@ export class Gnome extends Entity {
     p.translate(this.transform.x, this.transform.y + bob);
 
     // Draw cap based on shape
-    const capRgb = hexToRgb(this.capColor);
     p.noStroke();
-    p.fill(capRgb.r, capRgb.g, capRgb.b, alpha * 255);
+    p.fill(this.capRgb.r, this.capRgb.g, this.capRgb.b, alpha * 255);
 
     const capSize = this.size;
     switch (this.capShape) {
@@ -144,31 +163,23 @@ export class Gnome extends Entity {
     }
 
     // Stem/body
-    const boneRgb = hexToRgb(COLORS.bone);
-    const clayRgb = hexToRgb(COLORS.clay);
-    const stemColor = {
-      r: boneRgb.r + (clayRgb.r - boneRgb.r) * 0.3,
-      g: boneRgb.g + (clayRgb.g - boneRgb.g) * 0.3,
-      b: boneRgb.b + (clayRgb.b - boneRgb.b) * 0.3
-    };
-    p.fill(stemColor.r, stemColor.g, stemColor.b, alpha * 255);
+    p.fill(STEM_RGB.r, STEM_RGB.g, STEM_RGB.b, alpha * 255);
     p.rect(-capSize * 0.25, -capSize * 0.25, capSize * 0.5, capSize * 0.65, 2);
 
     // Geode eyes
     const eyeOffset = this.lookAngle < 0 ? -1 : 1;
     const eyeY = -capSize * 0.35;
-    const eyeRgb = hexToRgb(this.eyeColor);
 
     // Eye glow
     p.push();
     p.blendMode(p.ADD);
-    p.fill(eyeRgb.r, eyeRgb.g, eyeRgb.b, this.eyeGlow * 80 * alpha);
+    p.fill(this.eyeRgb.r, this.eyeRgb.g, this.eyeRgb.b, this.eyeGlow * 80 * alpha);
     p.ellipse(eyeOffset * capSize * 0.12, eyeY, 5, 5);
     p.ellipse(-eyeOffset * capSize * 0.12, eyeY, 5, 5);
     p.pop();
 
     // Eye dots
-    p.fill(eyeRgb.r, eyeRgb.g, eyeRgb.b, 200 * alpha);
+    p.fill(this.eyeRgb.r, this.eyeRgb.g, this.eyeRgb.b, 200 * alpha);
     p.ellipse(eyeOffset * capSize * 0.12, eyeY, 3, 3);
     p.ellipse(-eyeOffset * capSize * 0.12, eyeY, 3, 3);
 
@@ -178,7 +189,7 @@ export class Gnome extends Entity {
       p.push();
       p.translate(capSize * 0.3, -capSize * 0.1);
       p.rotate(waveAngle - 0.5);
-      p.stroke(stemColor.r, stemColor.g, stemColor.b, alpha * 255);
+      p.stroke(STEM_RGB.r, STEM_RGB.g, STEM_RGB.b, alpha * 255);
       p.strokeWeight(2);
       p.line(0, 0, 0, -capSize * 0.4);
       p.pop();
@@ -187,19 +198,18 @@ export class Gnome extends Entity {
     // Lantern
     const lanternX = capSize * 0.45;
     const lanternY = -capSize * 0.05;
-    const lrgb = hexToRgb(this.lanternColor);
 
     // Lantern glow
     p.push();
     p.blendMode(p.ADD);
     for (let r = 25; r > 0; r -= 6) {
-      p.fill(lrgb.r, lrgb.g, lrgb.b, totalGlow * 0.08 * 255 * alpha);
+      p.fill(this.lanternRgb.r, this.lanternRgb.g, this.lanternRgb.b, totalGlow * 0.08 * 255 * alpha);
       p.ellipse(lanternX, lanternY, r);
     }
     p.pop();
 
     // Lantern body
-    p.fill(lrgb.r, lrgb.g, lrgb.b, alpha * 255);
+    p.fill(this.lanternRgb.r, this.lanternRgb.g, this.lanternRgb.b, alpha * 255);
     p.ellipse(lanternX, lanternY, 5);
 
     // Chatting indicator

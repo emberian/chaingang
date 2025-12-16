@@ -33,6 +33,7 @@ export class InkSpray extends Entity {
     // Ink properties
     this.size = config.size || (5 + Math.random() * 10);
     this.color = config.color || (Math.random() < 0.5 ? COLORS.violet : COLORS.indigo);
+    this.colorRgb = hexToRgb(this.color); // Pre-cache RGB
 
     // Position
     if (config.x !== undefined) this.transform.x = config.x;
@@ -43,7 +44,7 @@ export class InkSpray extends Entity {
     const p = ctx.p5;
     const lifespan = this.getComponent('lifespan');
     const life = lifespan ? lifespan.life / lifespan.maxLife : 1;
-    const rgb = hexToRgb(this.color);
+    const rgb = this.colorRgb; // Use pre-cached RGB
 
     p.noStroke();
     p.fill(rgb.r, rgb.g, rgb.b, life * this.transform.alpha * 0.5 * 255);

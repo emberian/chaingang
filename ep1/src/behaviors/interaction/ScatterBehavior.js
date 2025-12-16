@@ -34,6 +34,7 @@ export class ScatterBehavior extends Behavior {
 
   onUpdate(entity, ctx, dt) {
     const transform = entity.transform;
+    const physics = entity.getComponent('physics');
     const pos = entity.getWorldPosition();
 
     const mouseSpeedSq = ctx.input.mouseVel.x ** 2 + ctx.input.mouseVel.y ** 2;
@@ -55,21 +56,35 @@ export class ScatterBehavior extends Behavior {
       }
     }
 
-    // Apply scatter velocity
+    // Apply scatter forces
     if (this.isScattered.get(entity)) {
-      transform.x += scatterVel.x;
-      transform.y += scatterVel.y;
+      // Use physics if available, otherwise modify transform directly
+      if (physics) {
+        // Apply scatter as force
+        physics.applyForce(scatterVel.x * 60, scatterVel.y * 60);
+      } else {
+        transform.x += scatterVel.x * dt * 60;
+        transform.y += scatterVel.y * dt * 60;
+      }
 
-      // Decay velocity
-      scatterVel.x *= 0.94;
-      scatterVel.y *= 0.94;
+      // Decay velocity (frame-rate independent)
+      const decay = Math.pow(0.94, dt * 60);
+      scatterVel.x *= decay;
+      scatterVel.y *= decay;
 
       // Return to base position
       if (this.trackBase) {
         const base = this.basePositions.get(entity);
         if (base) {
-          transform.x += (base.x - transform.x) * this.returnSpeed;
-          transform.y += (base.y - transform.y) * this.returnSpeed;
+          const returnX = (base.x - transform.x) * this.returnSpeed;
+          const returnY = (base.y - transform.y) * this.returnSpeed;
+
+          if (physics) {
+            physics.applyForce(returnX * 60, returnY * 60);
+          } else {
+            transform.x += returnX * dt * 60;
+            transform.y += returnY * dt * 60;
+          }
 
           // Check if returned
           const distToBase = distance(transform.x, transform.y, base.x, base.y);

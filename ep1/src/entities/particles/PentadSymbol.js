@@ -47,6 +47,7 @@ export class PentadSymbol extends Entity {
     this.size = config.size || (12 + Math.random() * 12);
     this.opacity = config.opacity || (0.2 + Math.random() * 0.3);
     this.pulseOffset = Math.random() * Math.PI * 2;
+    this.colorRgb = hexToRgb(SYMBOL_COLORS[this.type]); // Pre-cache RGB
 
     // Position
     if (config.x !== undefined) this.transform.x = config.x;
@@ -68,8 +69,7 @@ export class PentadSymbol extends Entity {
   onRender(ctx) {
     const p = ctx.p5;
     const symbol = SYMBOLS[this.type];
-    const color = SYMBOL_COLORS[this.type];
-    const rgb = hexToRgb(color);
+    const rgb = this.colorRgb; // Use pre-cached RGB
 
     const pulse = 0.8 + Math.sin(ctx.time.total + this.pulseOffset) * 0.2;
 

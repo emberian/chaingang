@@ -60,8 +60,8 @@ export const polvoSegment = new Segment({
             tags: ['polvo-ink'],
             x: ctx.input.mouseX + (Math.random() - 0.5) * 40,
             y: ctx.input.mouseY + (Math.random() - 0.5) * 40,
-            velocityX: -ctx.input.mouseVel.x * 0.1,
-            velocityY: -ctx.input.mouseVel.y * 0.1
+            vx: -ctx.input.mouseVel.x * 0.1,
+            vy: -ctx.input.mouseVel.y * 0.1
           });
         }
       }
@@ -98,7 +98,7 @@ export const polvoSegment = new Segment({
     // Clean up ink particles
     const inkParticles = ctx.entities.getByTag('polvo-ink');
     for (const p of inkParticles) {
-      ctx.entities.dispose(p);
+      p.dispose();
     }
   },
 

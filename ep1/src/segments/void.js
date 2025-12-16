@@ -12,10 +12,13 @@ import {
   MouseRepelBehavior,
   GatherOnStillMouseBehavior,
   WrapBoundsBehavior,
-  PulseBehavior,
-  GlowBehavior
+  PulseBehavior
 } from '../behaviors/index.js';
 import { COLORS, hexToRgb } from '../config/colors.js';
+
+// Pre-cached RGB values for render performance
+const HONK_RGB = hexToRgb(COLORS.honk);
+const VIOLET_RGB = hexToRgb(COLORS.violet);
 
 export const voidSegment = new Segment({
   name: 'void',
@@ -25,24 +28,24 @@ export const voidSegment = new Segment({
   maxDuration: 60,
 
   setup(ctx, segment) {
-    // Create 600 void particles
-    for (let i = 0; i < 600; i++) {
-      const colors = [COLORS.violet, COLORS.blush, COLORS.magenta];
+    // Create 150 void particles (reduced from 600 for performance)
+    // GlowBehavior removed - causes overlapping visual mess
+    const colors = [COLORS.violet, COLORS.blush, COLORS.magenta];
+    for (let i = 0; i < 150; i++) {
       ctx.entities.spawn(Particle, {
         tags: ['void-particle'],
         x: Math.random() * ctx.width,
         y: Math.random() * ctx.height,
-        size: 2 + Math.random() * 3,
+        size: 2 + Math.random() * 4,
         color: colors[Math.floor(Math.random() * colors.length)],
-        opacity: 0.5 + Math.random() * 0.3,
+        opacity: 0.6 + Math.random() * 0.4,
         behaviors: [
           NoiseDriftBehavior,
           CenterPullBehavior,
           MouseRepelBehavior,
           GatherOnStillMouseBehavior,
           WrapBoundsBehavior,
-          PulseBehavior,
-          GlowBehavior
+          PulseBehavior
         ]
       });
     }
@@ -72,7 +75,17 @@ export const voidSegment = new Segment({
     const progress = segment.getProgress();
 
     // Increase center pull as scene progresses
-    segment.state.centerPull = 0.0002 + progress * 0.002;
+    const newCenterPull = 0.0002 + progress * 0.002;
+    segment.state.centerPull = newCenterPull;
+
+    // Apply center pull to particle behaviors
+    const particles = ctx.entities.getByTag('void-particle');
+    for (const particle of particles) {
+      const centerPull = particle.behaviors.find(b => b.constructor.name === 'CenterPullBehavior');
+      if (centerPull) {
+        centerPull.strength = newCenterPull;
+      }
+    }
 
     // Spawn woodsmoke occasionally
     if (Math.random() < 0.03) {
@@ -99,21 +112,19 @@ export const voidSegment = new Segment({
     p.push();
     p.blendMode(p.ADD);
 
-    // Mouse trail
+    // Mouse trail (uses pre-cached HONK_RGB)
     p.noStroke();
-    const honkRgb = hexToRgb(COLORS.honk);
     for (let i = 0; i < 10; i++) {
       const trailX = ctx.input.mouseX - ctx.input.mouseVel.x * i * 0.3;
       const trailY = ctx.input.mouseY - ctx.input.mouseVel.y * i * 0.3;
       const alpha = (1 - i / 10) * 0.2;
-      p.fill(honkRgb.r, honkRgb.g, honkRgb.b, alpha * 255);
+      p.fill(HONK_RGB.r, HONK_RGB.g, HONK_RGB.b, alpha * 255);
       p.ellipse(trailX, trailY, 10 - i);
     }
 
-    // Quantum foam flickers
+    // Quantum foam flickers (uses pre-cached VIOLET_RGB)
     if (Math.random() < 0.03) {
-      const violetRgb = hexToRgb(COLORS.violet);
-      p.fill(violetRgb.r, violetRgb.g, violetRgb.b, (0.1 + Math.random() * 0.2) * 255);
+      p.fill(VIOLET_RGB.r, VIOLET_RGB.g, VIOLET_RGB.b, (0.1 + Math.random() * 0.2) * 255);
       p.noStroke();
       p.ellipse(
         Math.random() * ctx.width,
@@ -125,10 +136,9 @@ export const voidSegment = new Segment({
     // Central gathering glow as progress increases
     if (progress > 0.3) {
       const glowIntensity = (progress - 0.3) / 0.7 * 0.3;
-      const violetRgb = hexToRgb(COLORS.violet);
 
       for (let r = 200; r > 0; r -= 30) {
-        p.fill(violetRgb.r, violetRgb.g, violetRgb.b, glowIntensity * 0.05 * 255);
+        p.fill(VIOLET_RGB.r, VIOLET_RGB.g, VIOLET_RGB.b, glowIntensity * 0.05 * 255);
         p.noStroke();
         p.ellipse(ctx.width / 2, ctx.height / 2, r * 2);
       }

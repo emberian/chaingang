@@ -5,6 +5,12 @@
 import { Entity } from '../../core/Entity.js';
 import { COLORS, hexToRgb, lerpColor } from '../../config/colors.js';
 
+// Pre-cached RGB values for performance
+const CLAY_RGB = hexToRgb(COLORS.clay);
+const VIOLET_RGB = hexToRgb(COLORS.violet);
+const HONK_RGB = hexToRgb(COLORS.honk);
+const AMBER_RGB = hexToRgb(COLORS.amber);
+
 export class Titan extends Entity {
   constructor(config = {}) {
     super({
@@ -27,25 +33,33 @@ export class Titan extends Entity {
     this.thirdEyeGlow = 0;
     this.heartbeatTimer = 0;
 
-    // Create body particles
+    // Create body particles with pre-computed colors
     this.bodyParticles = [];
     for (let i = 0; i < 400; i++) {
+      const colorMix = Math.random();
       this.bodyParticles.push({
         t: i / 400,
         offset: Math.random() * 1000,
         size: 4 + Math.random() * 5,
-        colorMix: Math.random()
+        colorMix: colorMix,
+        // Pre-compute base color for each particle
+        baseColor: {
+          r: CLAY_RGB.r + (VIOLET_RGB.r - CLAY_RGB.r) * colorMix,
+          g: CLAY_RGB.g + (VIOLET_RGB.g - CLAY_RGB.g) * colorMix,
+          b: CLAY_RGB.b + (VIOLET_RGB.b - CLAY_RGB.b) * colorMix
+        }
       });
     }
 
-    // Create beard gnomes
+    // Create beard gnomes with pre-cached lantern RGB
     this.beardGnomes = [];
     for (let i = 0; i < 50; i++) {
+      const isHonk = Math.random() < 0.5;
       this.beardGnomes.push({
         offsetX: (Math.random() - 0.5) * 100,
         offsetY: 30 + i * 3.5,
         size: 4 + Math.random() * 4,
-        lanternColor: Math.random() < 0.5 ? COLORS.honk : COLORS.amber,
+        lanternRgb: isHonk ? HONK_RGB : AMBER_RGB,
         lanternPhase: Math.random() * Math.PI * 2,
         waving: Math.random() < 0.2,
         lookingAround: Math.random() < 0.3
@@ -128,6 +142,7 @@ export class Titan extends Entity {
 
   drawTitanBody(p, ctx, alpha) {
     p.noStroke();
+    const fillAlpha = alpha * 0.6 * 255;
 
     this.bodyParticles.forEach(particle => {
       const t = particle.t;
@@ -147,9 +162,15 @@ export class Titan extends Entity {
       const py = bodyY + p.noise(particle.offset + 100, ctx.time.total * 0.25) * 12;
       const ps = particle.size;
 
-      const c = lerpColor(COLORS.clay, COLORS.violet, p.noise(particle.offset * 0.05, ctx.time.total * 0.15));
-      const rgb = hexToRgb(c);
-      p.fill(rgb.r, rgb.g, rgb.b, alpha * 0.6 * 255);
+      // Use pre-computed base color, modulated by noise for variation
+      const noiseVal = p.noise(particle.offset * 0.05, ctx.time.total * 0.15);
+      const baseColor = particle.baseColor;
+      // Slight modulation based on noise (avoid expensive lerpColor)
+      const r = baseColor.r + (VIOLET_RGB.r - baseColor.r) * noiseVal * 0.3;
+      const g = baseColor.g + (VIOLET_RGB.g - baseColor.g) * noiseVal * 0.3;
+      const b = baseColor.b + (VIOLET_RGB.b - baseColor.b) * noiseVal * 0.3;
+
+      p.fill(r, g, b, fillAlpha);
       p.ellipse(px, py, ps);
     });
   }
@@ -167,8 +188,7 @@ export class Titan extends Entity {
 
     for (const side of [-1, 1]) {
       const eyeX = side * eyeSpacing;
-      const eyeColor = side < 0 ? COLORS.honk : COLORS.violet;
-      const eyeRgb = hexToRgb(eyeColor);
+      const eyeRgb = side < 0 ? HONK_RGB : VIOLET_RGB;
 
       // Eye socket
       p.fill(20, 10, 30, alpha * 255);
@@ -201,7 +221,7 @@ export class Titan extends Entity {
     if (this.thirdEyeGlow < 0.1) return;
 
     const eyeY = -200;
-    const glowRgb = hexToRgb(COLORS.honk);
+    const glowRgb = HONK_RGB;
 
     p.push();
     p.translate(0, eyeY);
@@ -263,7 +283,7 @@ export class Titan extends Entity {
       p.push();
       p.blendMode(p.ADD);
       const lanternGlow = 0.5 + Math.sin(gnome.lanternPhase) * 0.3;
-      const lrgb = hexToRgb(gnome.lanternColor);
+      const lrgb = gnome.lanternRgb;
       p.fill(lrgb.r, lrgb.g, lrgb.b, lanternGlow * 150 * alpha);
       p.ellipse(gx + gnome.size * 0.4 + waveOffset, gy + gnome.size * 0.3, 4);
       p.pop();

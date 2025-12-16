@@ -19,6 +19,7 @@ export class SporeParticle extends Entity {
     this.speed = config.speed || (0.1 + Math.random() * 0.2);
     this.offset = Math.random() * 1000;
     this.pulseOffset = Math.random() * Math.PI * 2;
+    this.colorRgb = hexToRgb(COLORS.pink); // Pre-cache RGB
 
     // Position
     if (config.x !== undefined) this.transform.x = config.x;
@@ -47,7 +48,7 @@ export class SporeParticle extends Entity {
   onRender(ctx) {
     const p = ctx.p5;
     const pulse = 0.5 + Math.sin(ctx.time.total * 2 + this.pulseOffset) * 0.3;
-    const rgb = hexToRgb(COLORS.pink);
+    const rgb = this.colorRgb; // Use pre-cached RGB
 
     p.noStroke();
     p.fill(rgb.r, rgb.g, rgb.b, pulse * this.transform.alpha * 150);

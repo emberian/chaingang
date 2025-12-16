@@ -248,7 +248,7 @@ export class Polvo extends Entity {
   onDispose(ctx) {
     // Dispose tentacles
     for (const tentacle of this.tentacles) {
-      ctx.entities.dispose(tentacle);
+      tentacle.dispose();
     }
     this.tentacles = [];
   }

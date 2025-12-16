@@ -35,6 +35,7 @@ export class WoodsmokeParticle extends Entity {
     this.size = config.size || (15 + Math.random() * 25);
     this.wobbleOffset = Math.random() * 1000;
     this.expansionRate = 5;
+    this.colorRgb = hexToRgb(COLORS.woodsmoke); // Pre-cache RGB
 
     // Position
     if (config.x !== undefined) this.transform.x = config.x;
@@ -55,7 +56,7 @@ export class WoodsmokeParticle extends Entity {
     const p = ctx.p5;
     const lifespan = this.getComponent('lifespan');
     const life = lifespan ? lifespan.life / lifespan.maxLife : 1;
-    const rgb = hexToRgb(COLORS.woodsmoke);
+    const rgb = this.colorRgb; // Use pre-cached RGB
 
     p.noStroke();
     p.fill(rgb.r, rgb.g, rgb.b, life * this.transform.alpha * 0.15 * 255);

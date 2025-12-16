@@ -40,15 +40,18 @@ export class Particle extends Entity {
     // Set initial position
     if (config.x !== undefined) this.transform.x = config.x;
     if (config.y !== undefined) this.transform.y = config.y;
-  }
 
-  onRender(ctx) {
-    // VisualComponent handles rendering
-    const visual = this.getComponent('visual');
-    if (visual) {
-      visual.render(ctx);
+    // Add behaviors from config
+    if (config.behaviors) {
+      for (const BehaviorClass of config.behaviors) {
+        if (typeof BehaviorClass === 'function') {
+          this.addBehavior(new BehaviorClass());
+        }
+      }
     }
   }
+
+  // Rendering is handled by Entity._render() which iterates components
 }
 
 // ─── PARTICLE EMITTER ─────────────────────────────────────────────────────
@@ -126,9 +129,9 @@ export class ParticleEmitter extends Entity {
     for (const BehaviorClass of this.particleBehaviors) {
       if (typeof BehaviorClass === 'function') {
         particle.addBehavior(new BehaviorClass());
-      } else {
-        // Already instantiated behavior (will be cloned per particle)
-        particle.addBehavior(Object.create(BehaviorClass));
+      } else if (BehaviorClass && BehaviorClass.constructor) {
+        // Already instantiated behavior - create new instance of same class with same config
+        particle.addBehavior(new BehaviorClass.constructor(BehaviorClass.config || {}));
       }
     }
 

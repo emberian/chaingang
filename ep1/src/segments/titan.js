@@ -8,6 +8,9 @@ import { Titan } from '../entities/characters/Titan.js';
 import { AuroraTrail, PentadSymbol } from '../entities/index.js';
 import { COLORS, hexToRgb } from '../config/colors.js';
 
+// Pre-cached RGB values for render performance
+const VIOLET_RGB = hexToRgb(COLORS.violet);
+
 export const titanSegment = new Segment({
   name: 'titan',
   duration: 25,
@@ -91,8 +94,7 @@ export const titanSegment = new Segment({
     p.translate(centerX, centerY);
     p.blendMode(p.ADD);
 
-    const violetRgb = hexToRgb(COLORS.violet);
-    p.stroke(violetRgb.r, violetRgb.g, violetRgb.b, 30);
+    p.stroke(VIOLET_RGB.r, VIOLET_RGB.g, VIOLET_RGB.b, 30);
     p.strokeWeight(1);
     p.noFill();
 
@@ -114,13 +116,13 @@ export const titanSegment = new Segment({
     // Clean up aurora
     const auroras = ctx.entities.getByTag('titan-aurora');
     for (const a of auroras) {
-      ctx.entities.dispose(a);
+      a.dispose();
     }
 
     // Clean up symbols
     const symbols = ctx.entities.getByTag('titan-symbol');
     for (const s of symbols) {
-      ctx.entities.dispose(s);
+      s.dispose();
     }
   }
 });

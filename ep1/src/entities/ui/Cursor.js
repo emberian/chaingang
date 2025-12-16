@@ -60,12 +60,37 @@ export class Cursor extends Entity {
     this.currentScene = 0;
     this.transitionProgress = 0;
     this.isTransitioning = false;
+
+    // Cached SVG elements for reuse
+    this._svg = null;
+    this._lastShape = null;
+    this._lastSize = 0;
   }
 
   onSpawn(ctx) {
     this.cursorEl = document.getElementById('custom-cursor');
     if (this.cursorEl) {
-      this.updateCursorStyle(ctx, 0);
+      // Create reusable SVG element
+      this._svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      this._svg.setAttribute('viewBox', '0 0 24 24');
+      this._svg.style.overflow = 'visible';
+
+      // Add glow filter once
+      const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+      defs.innerHTML = `
+        <filter id="cursor-glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+          <feMerge>
+            <feMergeNode in="coloredBlur"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+      `;
+      this._svg.appendChild(defs);
+      this._svg.style.filter = 'url(#cursor-glow)';
+      this.cursorEl.appendChild(this._svg);
+
+      this.updateCursorStyle(ctx);
     }
   }
 
@@ -76,7 +101,32 @@ export class Cursor extends Entity {
   }
 
   onUpdate(ctx, dt) {
-    if (!this.cursorEl) return;
+    // Re-acquire element if lost (e.g., after hot reload)
+    if (!this.cursorEl) {
+      this.cursorEl = document.getElementById('custom-cursor');
+      if (!this.cursorEl) return;
+
+      // Recreate SVG structure if element was re-acquired
+      if (!this._svg) {
+        this._svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        this._svg.setAttribute('viewBox', '0 0 24 24');
+        this._svg.style.overflow = 'visible';
+
+        const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+        defs.innerHTML = `
+          <filter id="cursor-glow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+            <feMerge>
+              <feMergeNode in="coloredBlur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        `;
+        this._svg.appendChild(defs);
+        this._svg.style.filter = 'url(#cursor-glow)';
+        this.cursorEl.appendChild(this._svg);
+      }
+    }
 
     // Position cursor
     this.cursorEl.style.left = ctx.input.mouseX + 'px';
@@ -87,7 +137,7 @@ export class Cursor extends Entity {
   }
 
   updateCursorStyle(ctx) {
-    if (!this.cursorEl) return;
+    if (!this.cursorEl || !ctx || !this._svg) return;
 
     const scene = this.currentScene;
     const config = CURSOR_CONFIGS[scene] || CURSOR_CONFIGS[0];
@@ -97,24 +147,21 @@ export class Cursor extends Entity {
     const t = this.isTransitioning ? this.transitionProgress : 0;
     const size = config.size + (nextConfig.size - config.size) * t;
 
-    // Clear previous content
-    this.cursorEl.innerHTML = '';
-
-    // Create SVG cursor based on shape
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('width', size);
-    svg.setAttribute('height', size);
-    svg.setAttribute('viewBox', '0 0 24 24');
-    svg.style.overflow = 'visible';
+    // Update SVG size
+    this._svg.setAttribute('width', size);
+    this._svg.setAttribute('height', size);
 
     const totalTime = ctx.time.total;
     const pulsePhase = (totalTime * 2) % (Math.PI * 2);
     const pulse = 0.8 + Math.sin(pulsePhase) * 0.2;
     const mouseVel = ctx.input.mouseVel || { x: 0, y: 0 };
 
+    // Build SVG content - only rebuild if shape changed or for animated shapes
+    let svgContent = '';
+
     switch (config.shape) {
       case 'probe':
-        svg.innerHTML = `
+        svgContent = `
           <circle cx="12" cy="12" r="${8 * pulse}" fill="none" stroke="${config.color}" stroke-width="2" opacity="0.7"/>
           <circle cx="12" cy="12" r="3" fill="${config.color}" opacity="0.9"/>
           <text x="12" y="14" text-anchor="middle" fill="${config.color}" font-size="8" opacity="${0.5 + Math.sin(pulsePhase * 2) * 0.3}">?</text>
@@ -123,7 +170,7 @@ export class Cursor extends Entity {
 
       case 'spark':
         const sparkAngle = totalTime * 3;
-        svg.innerHTML = `
+        svgContent = `
           <circle cx="12" cy="12" r="${6 * pulse}" fill="${config.color}" opacity="0.6"/>
           ${[0, 1, 2, 3, 4, 5].map(i => {
             const a = sparkAngle + (i / 6) * Math.PI * 2;
@@ -137,7 +184,7 @@ export class Cursor extends Entity {
 
       case 'tendril':
         const wave = Math.sin(totalTime * 4) * 3;
-        svg.innerHTML = `
+        svgContent = `
           <path d="M12,4 Q${14 + wave},8 12,12 Q${10 - wave},16 12,20"
                 fill="none" stroke="${config.color}" stroke-width="3" stroke-linecap="round" opacity="0.8"/>
           <circle cx="12" cy="4" r="3" fill="${config.color}" opacity="0.9"/>
@@ -147,7 +194,7 @@ export class Cursor extends Entity {
 
       case 'lantern':
         const flicker = 0.7 + Math.random() * 0.3;
-        svg.innerHTML = `
+        svgContent = `
           <rect x="9" y="10" width="6" height="10" rx="1" fill="none" stroke="${config.color}" stroke-width="1.5" opacity="0.6"/>
           <circle cx="12" cy="14" r="${4 * flicker}" fill="${config.color}" opacity="${0.5 * flicker}"/>
           <line x1="12" y1="10" x2="12" y2="6" stroke="${config.color}" stroke-width="1.5" opacity="0.6"/>
@@ -158,7 +205,7 @@ export class Cursor extends Entity {
         const blink = Math.sin(totalTime * 0.5) > 0.95 ? 0.2 : 1;
         const pupilX = 12 + (mouseVel.x * 0.1);
         const pupilY = 12 + (mouseVel.y * 0.1);
-        svg.innerHTML = `
+        svgContent = `
           <ellipse cx="12" cy="12" rx="10" ry="${6 * blink}" fill="none" stroke="${config.color}" stroke-width="2" opacity="0.7"/>
           <circle cx="${Math.max(8, Math.min(16, pupilX))}" cy="${Math.max(10, Math.min(14, pupilY))}" r="3" fill="${config.color}" opacity="0.9"/>
         `;
@@ -172,29 +219,20 @@ export class Cursor extends Entity {
           const r = (i / 20) * 8;
           spiralPath += `L${12 + Math.cos(a) * r},${12 + Math.sin(a) * r} `;
         }
-        svg.innerHTML = `
+        svgContent = `
           <path d="${spiralPath}" fill="none" stroke="${config.color}" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
         `;
         break;
     }
 
-    // Add glow filter
-    if (config.glow) {
-      const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-      defs.innerHTML = `
-        <filter id="cursor-glow" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
-          <feMerge>
-            <feMergeNode in="coloredBlur"/>
-            <feMergeNode in="SourceGraphic"/>
-          </feMerge>
-        </filter>
-      `;
-      svg.insertBefore(defs, svg.firstChild);
-      svg.style.filter = 'url(#cursor-glow)';
+    // Update content group - find or create the content group
+    let contentGroup = this._svg.querySelector('#cursor-content');
+    if (!contentGroup) {
+      contentGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      contentGroup.id = 'cursor-content';
+      this._svg.appendChild(contentGroup);
     }
-
-    this.cursorEl.appendChild(svg);
+    contentGroup.innerHTML = svgContent;
   }
 
   onDispose(ctx) {

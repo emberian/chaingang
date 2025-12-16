@@ -30,6 +30,7 @@ export class AutumnLeaf extends Entity {
     this.size = config.size || (8 + Math.random() * 10);
     this.wobbleOffset = Math.random() * 1000;
     this.color = config.color || (Math.random() < 0.6 ? COLORS.crimson : COLORS.amber);
+    this.colorRgb = hexToRgb(this.color); // Pre-cache RGB
 
     // Position
     if (config.x !== undefined) this.transform.x = config.x;
@@ -39,30 +40,26 @@ export class AutumnLeaf extends Entity {
   onUpdate(ctx, dt) {
     const physics = this.getComponent('physics');
 
-    // Wobble motion
-    physics.velocity.x += Math.sin(ctx.time.total + this.wobbleOffset) * 0.02;
+    // Wobble motion - apply as force so PhysicsComponent handles it
+    physics.applyForce(Math.sin(ctx.time.total + this.wobbleOffset) * 1.2, 0);
 
     // Wind gusts
     if (Math.random() < 0.01) {
-      physics.velocity.x += (Math.random() - 0.5);
+      physics.applyForce((Math.random() - 0.5) * 60, 0);
     }
 
     // Rotation
-    this.rotation += this.rotSpeed;
+    this.rotation += this.rotSpeed * dt * 60;
 
-    // Update position
-    this.transform.x += physics.velocity.x;
-    this.transform.y += physics.velocity.y;
-
-    // Remove if off screen
+    // Remove if off screen (position updated by PhysicsComponent)
     if (this.transform.y > ctx.height + 50) {
-      ctx.entities.dispose(this);
+      this.dispose();
     }
   }
 
   onRender(ctx) {
     const p = ctx.p5;
-    const rgb = hexToRgb(this.color);
+    const rgb = this.colorRgb; // Use pre-cached RGB
 
     p.push();
     p.translate(this.transform.x, this.transform.y);

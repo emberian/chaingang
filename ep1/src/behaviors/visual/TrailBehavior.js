@@ -1,5 +1,6 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // TRAIL BEHAVIOR - Leave visual trail behind moving entity
+// Uses circular buffer for O(1) operations instead of array shift/unshift
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { Behavior } from '../Behavior.js';
@@ -13,7 +14,15 @@ export class TrailBehavior extends Behavior {
     this.fadeOut = config.fadeOut !== false;     // Trail fades toward end
     this.sizeDecay = config.sizeDecay || 0.8;    // Size multiplier per point
     this.minSpeed = config.minSpeed || 0;        // Minimum speed to show trail
-    this.history = [];
+
+    // Circular buffer for O(1) insert/remove
+    this._buffer = new Array(this.length);
+    this._head = 0;        // Points to newest entry
+    this._count = 0;       // Number of valid entries
+
+    // Cache RGB conversion
+    this._cachedRgb = null;
+    this._cachedColorStr = null;
   }
 
   onUpdate(entity, ctx, dt) {
@@ -28,43 +37,55 @@ export class TrailBehavior extends Behavior {
 
     // Only record if moving fast enough
     if (speed > this.minSpeed) {
-      // Add current position to history
-      this.history.unshift({
-        x: transform.x,
-        y: transform.y,
-        alpha: transform.alpha
-      });
+      // Add current position to circular buffer
+      this._head = (this._head + 1) % this.length;
+      if (!this._buffer[this._head]) {
+        this._buffer[this._head] = { x: 0, y: 0, alpha: 1 };
+      }
+      this._buffer[this._head].x = transform.x;
+      this._buffer[this._head].y = transform.y;
+      this._buffer[this._head].alpha = transform.alpha;
 
-      // Trim to max length
-      if (this.history.length > this.length) {
-        this.history.pop();
+      if (this._count < this.length) {
+        this._count++;
       }
     } else {
       // Fade existing trail
-      if (this.history.length > 0) {
-        this.history.pop();
+      if (this._count > 0) {
+        this._count--;
       }
     }
   }
 
   onRender(entity, ctx) {
-    if (this.history.length < 2) return;
+    if (this._count < 2) return;
 
     const p5 = ctx.p5;
     const visual = entity.getComponent('visual');
     const baseSize = visual?.size || 10;
 
-    const rgb = typeof this.color === 'string'
-      ? hexToRgb(this.color)
-      : this.color;
+    // Cache RGB conversion
+    if (typeof this.color === 'string') {
+      if (this.color !== this._cachedColorStr) {
+        this._cachedColorStr = this.color;
+        this._cachedRgb = hexToRgb(this.color);
+      }
+    } else {
+      this._cachedRgb = this.color;
+    }
+    const rgb = this._cachedRgb;
 
     p5.push();
     p5.blendMode(p5.ADD);
     p5.noStroke();
 
-    for (let i = 1; i < this.history.length; i++) {
-      const point = this.history[i];
-      const progress = i / this.history.length;
+    // Iterate through circular buffer from newest to oldest
+    for (let i = 1; i < this._count; i++) {
+      const idx = (this._head - i + this.length) % this.length;
+      const point = this._buffer[idx];
+      if (!point) continue;
+
+      const progress = i / this._count;
 
       // Calculate alpha (fade toward end)
       const alpha = this.fadeOut

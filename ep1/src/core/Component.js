@@ -66,9 +66,11 @@ export class PhysicsComponent extends Component {
     this.velocity.x += this.acceleration.x * dt;
     this.velocity.y += this.acceleration.y * dt;
 
-    // Apply friction
-    this.velocity.x *= this.friction;
-    this.velocity.y *= this.friction;
+    // Apply friction (frame-rate independent using exponential decay)
+    // friction^(dt*60) normalizes to 60fps behavior
+    const frictionFactor = Math.pow(this.friction, dt * 60);
+    this.velocity.x *= frictionFactor;
+    this.velocity.y *= frictionFactor;
 
     // Clamp to max speed
     const speed = Math.sqrt(this.velocity.x ** 2 + this.velocity.y ** 2);
@@ -78,9 +80,9 @@ export class PhysicsComponent extends Component {
       this.velocity.y *= scale;
     }
 
-    // Update position
-    transform.x += this.velocity.x;
-    transform.y += this.velocity.y;
+    // Update position (scaled by dt for frame-rate independence)
+    transform.x += this.velocity.x * dt * 60;
+    transform.y += this.velocity.y * dt * 60;
 
     // Reset acceleration each frame
     this.acceleration.x = 0;
@@ -109,6 +111,10 @@ export class VisualComponent extends Component {
     this.strokeColor = config.strokeColor || null;
     this.strokeWeight = config.strokeWeight || 0;
     this.customRender = config.customRender || null; // Function for custom rendering
+
+    // Pre-cache RGB values to avoid per-frame p5.color() calls
+    this._cachedColorStr = null;
+    this._cachedRgb = null;
   }
 
   render(ctx) {
@@ -131,11 +137,14 @@ export class VisualComponent extends Component {
       p5.noStroke();
     }
 
+    // Cache color RGB conversion (avoid p5.color() call every frame)
     if (typeof this.color === 'string') {
-      p5.fill(p5.color(this.color).levels[0],
-              p5.color(this.color).levels[1],
-              p5.color(this.color).levels[2],
-              alpha);
+      if (this.color !== this._cachedColorStr) {
+        this._cachedColorStr = this.color;
+        const c = p5.color(this.color);
+        this._cachedRgb = [c.levels[0], c.levels[1], c.levels[2]];
+      }
+      p5.fill(this._cachedRgb[0], this._cachedRgb[1], this._cachedRgb[2], alpha);
     } else {
       p5.fill(this.color);
     }

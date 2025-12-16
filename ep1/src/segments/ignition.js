@@ -7,6 +7,12 @@ import { Segment } from '../timeline/Choreography.js';
 import { PentadSymbol } from '../entities/index.js';
 import { COLORS, hexToRgb, lerpColor } from '../config/colors.js';
 
+// Pre-cached RGB values for render performance
+const HONK_RGB = hexToRgb(COLORS.honk);
+const GOLD_RGB = hexToRgb(COLORS.gold);
+const VIOLET_RGB = hexToRgb(COLORS.violet);
+const AMBER_RGB = hexToRgb(COLORS.amber);
+
 const NAME_LETTERS = "l'n'd'r Bjrnkpfptf".split('');
 
 export const ignitionSegment = new Segment({
@@ -97,13 +103,16 @@ export const ignitionSegment = new Segment({
     const centerX = ctx.width / 2;
     const centerY = ctx.height / 2;
 
-    // Background glow
+    // Background glow (lerp RGB values directly instead of hexToRgb)
     p.push();
     p.blendMode(p.ADD);
 
     const glowIntensity = Math.min(1, progress * 2);
-    const glowColor = lerpColor(COLORS.violet, COLORS.honk, progress);
-    const glowRgb = hexToRgb(glowColor);
+    const glowRgb = {
+      r: VIOLET_RGB.r + (HONK_RGB.r - VIOLET_RGB.r) * progress,
+      g: VIOLET_RGB.g + (HONK_RGB.g - VIOLET_RGB.g) * progress,
+      b: VIOLET_RGB.b + (HONK_RGB.b - VIOLET_RGB.b) * progress
+    };
 
     for (let r = 300; r > 0; r -= 30) {
       p.fill(glowRgb.r, glowRgb.g, glowRgb.b, 0.02 * glowIntensity * 255);
@@ -112,15 +121,14 @@ export const ignitionSegment = new Segment({
     }
     p.pop();
 
-    // Radial waves
+    // Radial waves (uses pre-cached HONK_RGB)
     p.push();
     p.noFill();
-    const honkRgb = hexToRgb(COLORS.honk);
     for (let i = 0; i < 5; i++) {
       const waveProgress = (progress * 3 + i / 5) % 1;
       const waveRadius = waveProgress * 400;
       const waveAlpha = (1 - waveProgress) * 0.3;
-      p.stroke(honkRgb.r, honkRgb.g, honkRgb.b, waveAlpha * 255);
+      p.stroke(HONK_RGB.r, HONK_RGB.g, HONK_RGB.b, waveAlpha * 255);
       p.strokeWeight(2);
       p.ellipse(centerX, centerY, waveRadius * 2);
     }
@@ -137,7 +145,7 @@ export const ignitionSegment = new Segment({
       p.push();
       p.blendMode(p.ADD);
       const pulseSize = (Math.sin(ctx.time.total * 10) * 0.5 + 0.5) * 50 + 20;
-      p.fill(honkRgb.r, honkRgb.g, honkRgb.b, 0.2 * 255);
+      p.fill(HONK_RGB.r, HONK_RGB.g, HONK_RGB.b, 0.2 * 255);
       p.noStroke();
       p.ellipse(ctx.input.mouseX, ctx.input.mouseY, pulseSize);
       p.pop();
@@ -148,7 +156,7 @@ export const ignitionSegment = new Segment({
     // Fade ignition symbols
     const symbols = ctx.entities.getByTag('ignition-symbol');
     for (const s of symbols) {
-      ctx.entities.dispose(s);
+      s.dispose();
     }
   }
 });
@@ -161,8 +169,12 @@ function drawGlyph(p, ctx, state, centerX, centerY, progress) {
   const mouseDistFromCenter = Math.hypot(ctx.input.mouseX - centerX, ctx.input.mouseY - centerY);
   const glyphGlow = Math.max(0.3, 1 - mouseDistFromCenter / 300 * 0.7);
 
-  const glyphColor = lerpColor(COLORS.amber, COLORS.honk, progress);
-  const glyphRgb = hexToRgb(glyphColor);
+  // Lerp RGB values directly instead of lerpColor + hexToRgb
+  const glyphRgb = {
+    r: AMBER_RGB.r + (HONK_RGB.r - AMBER_RGB.r) * progress,
+    g: AMBER_RGB.g + (HONK_RGB.g - AMBER_RGB.g) * progress,
+    b: AMBER_RGB.b + (HONK_RGB.b - AMBER_RGB.b) * progress
+  };
 
   p.noFill();
   p.stroke(glyphRgb.r, glyphRgb.g, glyphRgb.b, glyphGlow * 255);
@@ -203,9 +215,13 @@ function drawLetterFragments(p, ctx, state, centerX, centerY, progress) {
     const fragX = centerX + Math.cos(frag.angle) * frag.radius + frag.scatterX;
     const fragY = centerY + Math.sin(frag.angle) * frag.radius + frag.verticalOffset + frag.scatterY;
 
+    // Lerp RGB values directly instead of lerpColor + hexToRgb per fragment
     const fragT = Math.sin(frag.angle + ctx.time.total) * 0.5 + 0.5;
-    const fragColor = lerpColor(COLORS.gold, COLORS.honk, fragT);
-    const fragRgb = hexToRgb(fragColor);
+    const fragRgb = {
+      r: GOLD_RGB.r + (HONK_RGB.r - GOLD_RGB.r) * fragT,
+      g: GOLD_RGB.g + (HONK_RGB.g - GOLD_RGB.g) * fragT,
+      b: GOLD_RGB.b + (HONK_RGB.b - GOLD_RGB.b) * fragT
+    };
 
     p.fill(fragRgb.r, fragRgb.g, fragRgb.b, frag.opacity * 0.8 * 255);
     p.noStroke();

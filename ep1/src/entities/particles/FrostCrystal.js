@@ -22,6 +22,8 @@ export class FrostCrystal extends Entity {
     this.opacity = 0;
     this.growing = true;
     this.growthThreshold = config.growthThreshold || 0.5;
+    this.sceneProgress = 0;
+    this.colorRgb = hexToRgb(COLORS.frost); // Pre-cache RGB
 
     // Set position based on edge
     this.setEdgePosition(config.width || 800, config.height || 600);
@@ -63,7 +65,7 @@ export class FrostCrystal extends Entity {
     if (this.opacity < 0.01) return;
 
     const p = ctx.p5;
-    const rgb = hexToRgb(COLORS.frost);
+    const rgb = this.colorRgb; // Use pre-cached RGB
 
     p.push();
     p.translate(this.transform.x, this.transform.y);

@@ -64,8 +64,8 @@ export class Segment {
   }
 
   get progress() {
-    if (this.duration === Infinity) return 0;
-    return Math.min(1, this.elapsed / this.duration);
+    // Use getProgress() to ensure consistency (accounts for extendedTime)
+    return this.getProgress();
   }
 
   get isComplete() {
@@ -244,20 +244,20 @@ export class Choreography {
   update(ctx, dt) {
     if (!this.playing) return;
 
+    // Update current segment (even during transitions for visual continuity)
+    if (this.currentSegment) {
+      this.currentSegment.update(ctx, dt);
+    }
+
     // Handle transitions
     if (this.transitioning) {
       this.updateTransition(dt);
       return;
     }
 
-    // Update current segment
-    if (this.currentSegment) {
-      this.currentSegment.update(ctx, dt);
-
-      // Check for auto-advance
-      if (this.autoAdvance && this.currentSegment.isComplete) {
-        this.next();
-      }
+    // Check for auto-advance (only when not transitioning)
+    if (this.currentSegment && this.autoAdvance && this.currentSegment.isComplete) {
+      this.next();
     }
   }
 

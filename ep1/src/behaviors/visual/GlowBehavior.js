@@ -15,6 +15,10 @@ export class GlowBehavior extends Behavior {
     this.pulse = config.pulse || false;          // Whether to pulse
     this.pulseFrequency = config.pulseFrequency || 2;
     this.pulseAmount = config.pulseAmount || 0.3; // How much intensity varies
+
+    // Pre-cache RGB conversion
+    this._cachedRgb = null;
+    this._cachedColorStr = null;
   }
 
   onRender(entity, ctx) {
@@ -28,10 +32,16 @@ export class GlowBehavior extends Behavior {
       intensity += pulseValue * this.pulseAmount;
     }
 
-    // Get color RGB
-    const rgb = typeof this.color === 'string'
-      ? hexToRgb(this.color)
-      : this.color;
+    // Get color RGB (cached)
+    if (typeof this.color === 'string') {
+      if (this.color !== this._cachedColorStr) {
+        this._cachedColorStr = this.color;
+        this._cachedRgb = hexToRgb(this.color);
+      }
+    } else {
+      this._cachedRgb = this.color;
+    }
+    const rgb = this._cachedRgb;
 
     p5.push();
     p5.translate(transform.x, transform.y);

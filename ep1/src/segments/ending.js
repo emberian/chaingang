@@ -7,6 +7,16 @@ import { Segment } from '../timeline/Choreography.js';
 import { PentadSymbol } from '../entities/index.js';
 import { COLORS, hexToRgb, lerpColor } from '../config/colors.js';
 
+// Pre-cached RGB values for render performance
+const TEAL_RGB = hexToRgb(COLORS.teal);
+const HONK_RGB = hexToRgb(COLORS.honk);
+const BONE_RGB = hexToRgb(COLORS.bone);
+const VIOLET_RGB = hexToRgb(COLORS.violet);
+const AMBER_RGB = hexToRgb(COLORS.amber);
+const BOON_RGB = hexToRgb(COLORS.boon);
+const BANE_RGB = hexToRgb(COLORS.bane);
+const BONK_RGB = hexToRgb(COLORS.bonk);
+
 export const endingSegment = new Segment({
   name: 'ending',
   duration: 30,
@@ -15,9 +25,10 @@ export const endingSegment = new Segment({
   setup(ctx, segment) {
     const p = ctx.p5;
 
-    // Create multiple final spirals
+    // Create multiple final spirals with pre-cached color RGB
     const finalSpirals = [];
     for (let i = 0; i < 12; i++) {
+      const color = lerpColor(COLORS.violet, COLORS.teal, Math.random());
       finalSpirals.push({
         x: ctx.width * 0.1 + Math.random() * ctx.width * 0.8,
         y: ctx.height * 0.1 + Math.random() * ctx.height * 0.8,
@@ -26,7 +37,8 @@ export const endingSegment = new Segment({
         rotationSpeed: (0.01 + Math.random() * 0.02) * (Math.random() < 0.5 ? 1 : -1),
         opacity: 0,
         glowIntensity: 0,
-        color: lerpColor(COLORS.violet, COLORS.teal, Math.random())
+        color: color,
+        colorRgb: hexToRgb(color) // Pre-cache RGB
       });
     }
 
@@ -83,15 +95,20 @@ export const endingSegment = new Segment({
       ctx.audio?.playChime(659); // E5
     }
 
-    // Update color explosion particles
-    state.colorExplosionParticles = state.colorExplosionParticles.filter(p => {
+    // Update color explosion particles in-place (avoid array allocation)
+    let writeIndex = 0;
+    for (let i = 0; i < state.colorExplosionParticles.length; i++) {
+      const p = state.colorExplosionParticles[i];
       p.x += p.vx;
       p.y += p.vy;
       p.vx *= 0.98;
       p.vy *= 0.98;
       p.life -= dt * 0.5;
-      return p.life > 0;
-    });
+      if (p.life > 0) {
+        state.colorExplosionParticles[writeIndex++] = p;
+      }
+    }
+    state.colorExplosionParticles.length = writeIndex;
 
     // Final HONK
     if (progress > 0.92 && !state.finalHonkTriggered) {
@@ -124,9 +141,8 @@ export const endingSegment = new Segment({
     p.scale(zoomScale);
 
     // Draw main spiral
-    const tealRgb = hexToRgb(COLORS.teal);
     p.noFill();
-    p.stroke(tealRgb.r, tealRgb.g, tealRgb.b, 0.5 * 255);
+    p.stroke(TEAL_RGB.r, TEAL_RGB.g, TEAL_RGB.b, 0.5 * 255);
     p.strokeWeight(2);
     p.beginShape();
     for (let a = 0; a < Math.PI * 2 * 5; a += 0.15) {
@@ -137,9 +153,8 @@ export const endingSegment = new Segment({
 
     // Central glow
     p.blendMode(p.ADD);
-    const honkRgb = hexToRgb(COLORS.honk);
     for (let r = 60; r > 0; r -= 12) {
-      p.fill(honkRgb.r, honkRgb.g, honkRgb.b, 0.06 * 255);
+      p.fill(HONK_RGB.r, HONK_RGB.g, HONK_RGB.b, 0.06 * 255);
       p.noStroke();
       p.ellipse(0, 0, r * 2);
     }
@@ -159,9 +174,8 @@ export const endingSegment = new Segment({
       p.push();
       p.blendMode(p.ADD);
       const peaceGlow = Math.min(0.3, (ctx.input.mouseStillTime - 2) / 3 * 0.3);
-      const boneRgb = hexToRgb(COLORS.bone);
       for (let r = 70; r > 0; r -= 12) {
-        p.fill(boneRgb.r, boneRgb.g, boneRgb.b, peaceGlow * 0.12 * 255);
+        p.fill(BONE_RGB.r, BONE_RGB.g, BONE_RGB.b, peaceGlow * 0.12 * 255);
         p.noStroke();
         p.ellipse(ctx.input.mouseX, ctx.input.mouseY, r);
       }
@@ -173,22 +187,26 @@ export const endingSegment = new Segment({
     // Clean up symbols
     const symbols = ctx.entities.getByTag('ending-symbol');
     for (const s of symbols) {
-      ctx.entities.dispose(s);
+      s.dispose();
     }
 
-    // Clean up all remaining entities
+    // Clean up all remaining non-UI entities (preserve UI for potential restart)
     const allEntities = ctx.entities.getActive();
     for (const entity of allEntities) {
-      ctx.entities.dispose(entity);
+      // Preserve UI layer entities (cursor, progress bar, title, narrative)
+      if (entity.layer !== 'ui') {
+        entity.dispose();
+      }
     }
 
     ctx.emit('experience-complete');
   }
 });
 
-function triggerColorExplosion(ctx, state) {
-  const colors = [COLORS.boon, COLORS.bane, COLORS.bone, COLORS.bonk, COLORS.honk];
+// Pre-cached explosion colors array
+const EXPLOSION_COLORS_RGB = [BOON_RGB, BANE_RGB, BONE_RGB, BONK_RGB, HONK_RGB];
 
+function triggerColorExplosion(ctx, state) {
   for (let i = 0; i < 100; i++) {
     const angle = Math.random() * Math.PI * 2;
     const speed = 3 + Math.random() * 9;
@@ -198,19 +216,21 @@ function triggerColorExplosion(ctx, state) {
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
       size: 8 + Math.random() * 17,
-      color: colors[Math.floor(Math.random() * colors.length)],
+      rgb: EXPLOSION_COLORS_RGB[Math.floor(Math.random() * 5)], // Pre-cached RGB
       life: 1
     });
   }
 }
+
+// Pre-cached flash colors array
+const FLASH_COLORS_RGB = [VIOLET_RGB, AMBER_RGB, TEAL_RGB, BOON_RGB, HONK_RGB];
 
 function drawMontageFlashes(p, ctx, phase) {
   const flashIndex = Math.floor(phase * 5);
   const flashAlpha = Math.sin(phase * Math.PI * 5) * 0.3;
 
   if (flashAlpha > 0) {
-    const flashColors = [COLORS.violet, COLORS.amber, COLORS.teal, COLORS.boon, COLORS.honk];
-    const rgb = hexToRgb(flashColors[flashIndex % 5]);
+    const rgb = FLASH_COLORS_RGB[flashIndex % 5];
 
     p.push();
     p.noStroke();
@@ -228,12 +248,11 @@ function drawFinalSpiral(p, ctx, spiral) {
 
   // Draw mini spiral
   p.noFill();
-  const honkRgb = hexToRgb(COLORS.honk);
-  const spiralRgb = hexToRgb(spiral.color);
+  const spiralRgb = spiral.colorRgb; // Pre-cached
   const rgb = {
-    r: spiralRgb.r + (honkRgb.r - spiralRgb.r) * spiral.glowIntensity,
-    g: spiralRgb.g + (honkRgb.g - spiralRgb.g) * spiral.glowIntensity,
-    b: spiralRgb.b + (honkRgb.b - spiralRgb.b) * spiral.glowIntensity
+    r: spiralRgb.r + (HONK_RGB.r - spiralRgb.r) * spiral.glowIntensity,
+    g: spiralRgb.g + (HONK_RGB.g - spiralRgb.g) * spiral.glowIntensity,
+    b: spiralRgb.b + (HONK_RGB.b - spiralRgb.b) * spiral.glowIntensity
   };
   p.stroke(rgb.r, rgb.g, rgb.b, spiral.opacity * 255);
   p.strokeWeight(1.5);
@@ -249,7 +268,7 @@ function drawFinalSpiral(p, ctx, spiral) {
   if (spiral.glowIntensity > 0.1) {
     p.push();
     p.blendMode(p.ADD);
-    p.fill(honkRgb.r, honkRgb.g, honkRgb.b, spiral.glowIntensity * 0.25 * 255);
+    p.fill(HONK_RGB.r, HONK_RGB.g, HONK_RGB.b, spiral.glowIntensity * 0.25 * 255);
     p.noStroke();
     p.ellipse(0, 0, 35);
     p.pop();
@@ -261,11 +280,10 @@ function drawFinalSpiral(p, ctx, spiral) {
 function drawSpiralConnections(p, ctx, spirals) {
   p.push();
   p.blendMode(p.ADD);
-  const honkRgb = hexToRgb(COLORS.honk);
 
   spirals.forEach(spiral => {
     if (spiral.glowIntensity > 0.2) {
-      p.stroke(honkRgb.r, honkRgb.g, honkRgb.b, spiral.glowIntensity * 0.35 * 255);
+      p.stroke(HONK_RGB.r, HONK_RGB.g, HONK_RGB.b, spiral.glowIntensity * 0.35 * 255);
       p.strokeWeight(1);
 
       // Curved line from mouse to spiral
@@ -292,7 +310,7 @@ function drawColorExplosion(p, particles) {
   p.noStroke();
 
   particles.forEach(particle => {
-    const rgb = hexToRgb(particle.color);
+    const rgb = particle.rgb; // Pre-cached
     p.fill(rgb.r, rgb.g, rgb.b, particle.life * 0.6 * 255);
     p.ellipse(particle.x, particle.y, particle.size * particle.life);
   });

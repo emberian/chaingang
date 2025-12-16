@@ -8,6 +8,10 @@ import { Gnome } from '../entities/characters/Gnome.js';
 import { SporeParticle, WoodsmokeParticle, FrostCrystal } from '../entities/index.js';
 import { COLORS, hexToRgb, lerpColor } from '../config/colors.js';
 
+// Pre-cached RGB values for render performance
+const TEAL_RGB = hexToRgb(COLORS.teal);
+const HONK_RGB = hexToRgb(COLORS.honk);
+
 export const gnomesSegment = new Segment({
   name: 'gnomes',
   duration: 30,
@@ -146,7 +150,7 @@ export const gnomesSegment = new Segment({
     // Update frost crystals growth
     const frostCrystals = ctx.entities.getByTag('gnome-frost');
     frostCrystals.forEach(f => {
-      if (f.setProgress) f.setProgress(progress);
+      if (f.setSceneProgress) f.setSceneProgress(progress);
     });
 
     // Extend segment if engaging with gnomes
@@ -174,14 +178,14 @@ export const gnomesSegment = new Segment({
     const gnomes = ctx.entities.getByTag('gnome');
     for (const g of gnomes) {
       g.transform.alpha = 0;
-      ctx.entities.dispose(g);
+      g.dispose();
     }
 
     // Clean up spores and frost
     ['gnome-spore', 'gnome-frost', 'gnome-smoke'].forEach(tag => {
       const entities = ctx.entities.getByTag(tag);
       for (const e of entities) {
-        ctx.entities.dispose(e);
+        e.dispose();
       }
     });
   }
@@ -212,8 +216,6 @@ function drawTerracedLandscape(p, ctx) {
 
 function drawMyceliumNetwork(p, ctx, nodes) {
   p.push();
-  const tealRgb = hexToRgb(COLORS.teal);
-  const honkRgb = hexToRgb(COLORS.honk);
 
   nodes.forEach((node, i) => {
     // Draw connections
@@ -222,7 +224,7 @@ function drawMyceliumNetwork(p, ctx, nodes) {
       const pulsePos = (Math.sin(node.pulsePhase) * 0.5 + 0.5);
 
       // Base line
-      p.stroke(tealRgb.r, tealRgb.g, tealRgb.b, 40);
+      p.stroke(TEAL_RGB.r, TEAL_RGB.g, TEAL_RGB.b, 40);
       p.strokeWeight(1);
       p.line(node.x, node.y, other.x, other.y);
 
@@ -230,14 +232,14 @@ function drawMyceliumNetwork(p, ctx, nodes) {
       if (node.active || other.active) {
         const px = node.x + (other.x - node.x) * pulsePos;
         const py = node.y + (other.y - node.y) * pulsePos;
-        p.fill(honkRgb.r, honkRgb.g, honkRgb.b, 180);
+        p.fill(HONK_RGB.r, HONK_RGB.g, HONK_RGB.b, 180);
         p.noStroke();
         p.ellipse(px, py, 5);
       }
     });
 
     // Draw node
-    p.fill(tealRgb.r, tealRgb.g, tealRgb.b, node.active ? 150 : 60);
+    p.fill(TEAL_RGB.r, TEAL_RGB.g, TEAL_RGB.b, node.active ? 150 : 60);
     p.noStroke();
     p.ellipse(node.x, node.y, 6);
   });

@@ -6,6 +6,7 @@
 import p5 from 'p5';
 import { Context } from './core/Context.js';
 import { COLORS, hexToRgb } from './config/colors.js';
+// Note: Particle/behaviors imports kept for potential future use but demo particles disabled
 import { Particle, ParticleEmitter } from './entities/Particle.js';
 import {
   NoiseDriftBehavior,
@@ -53,7 +54,8 @@ class App {
 
         // Initialize render pipeline with effects
         app.ctx.render = new RenderPipeline(p);
-        app.ctx.render.addEffect(new BloomEffect({ threshold: 0.6, intensity: 0.4, radius: 6 }));
+        // NOTE: BloomEffect disabled - loadPixels/updatePixels + 3 blur passes murders FPS
+        // app.ctx.render.addEffect(new BloomEffect({ threshold: 0.8, intensity: 0.2, radius: 4 }));
         app.ctx.render.addEffect(new VignetteEffect({ intensity: 0.5, size: 0.7 }));
 
         // Initialize timeline
@@ -88,8 +90,8 @@ class App {
         // Spawn UI entities
         app.spawnUIEntities();
 
-        // Demo: Spawn particles to test the architecture
-        app.spawnDemoParticles();
+        // NOTE: Demo particles removed - void segment handles particle spawning
+        // app.spawnDemoParticles();
 
         console.log('EP1 Architecture initialized');
       };
@@ -215,16 +217,13 @@ class App {
   }
 
   drawBackgroundTo(g) {
-    // Gradient background
-    const p = this.ctx.p5;
-    const c1 = p.color(5, 3, 8);
-    const c2 = p.color(26, 16, 48);
+    // Gradient background using canvas gradient (much faster than line-by-line)
+    const gradient = g.drawingContext.createLinearGradient(0, 0, 0, this.ctx.height);
+    gradient.addColorStop(0, 'rgb(5, 3, 8)');
+    gradient.addColorStop(1, 'rgb(11, 7, 20)'); // Interpolated at 0.3 blend
 
-    for (let y = 0; y < this.ctx.height; y += 4) {
-      const inter = p.map(y, 0, this.ctx.height, 0, 1);
-      g.stroke(p.lerpColor(c1, c2, inter * 0.3));
-      g.line(0, y, this.ctx.width, y);
-    }
+    g.drawingContext.fillStyle = gradient;
+    g.drawingContext.fillRect(0, 0, this.ctx.width, this.ctx.height);
   }
 
   drawVignette(p) {
@@ -276,7 +275,7 @@ class App {
     // Spawn episode title (shows at start)
     this.episodeTitle = this.ctx.entities.spawn(EpisodeTitle, {
       tags: ['ui-title'],
-      title: 'The Thirteenth Turning',
+      mainTitle: 'The Thirteenth Turning',
       subtitle: 'episode one'
     });
 
@@ -374,7 +373,7 @@ class App {
       particleConfig: {
         color: () => {
           // Random color from palette
-          const colors = [COLORS.violet, COLORS.cyan, COLORS.magenta, COLORS.blush];
+          const colors = [COLORS.violet, COLORS.honk, COLORS.magenta, COLORS.blush];
           return colors[Math.floor(Math.random() * colors.length)];
         },
         size: () => 2 + Math.random() * 4,
